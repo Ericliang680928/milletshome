@@ -246,6 +246,23 @@
     background:var(--charcoal);color:#fff;padding:13px 22px;border-radius:999px;font-weight:500;
     box-shadow:var(--shadow);opacity:0;transition:.25s;z-index:200;font-size:14px}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* 手機版微調 */
+  @media(max-width:680px){
+    .util .wrap{justify-content:center}
+    .util .left{display:none}
+    .util .right span{display:none}
+    .util .right{gap:18px}
+    .hero .wrap{padding-top:18px;padding-bottom:28px;gap:22px}
+    .hero h1{font-size:34px}
+    .hero p{font-size:16px}
+    .hero-card{max-width:340px;margin:0 auto}
+    .coupon{text-align:left}
+    .sec-head h2{font-size:28px}
+    .grid{grid-template-columns:1fr 1fr;gap:12px}
+    .card .body{padding:12px}
+    .card .add{min-height:42px;font-size:14px}
+    .mmenu .panel a{display:block;padding:14px 4px;font-size:18px}
+  }
 </style>
 </head>
 <body>
@@ -280,7 +297,6 @@
     </nav>
 
     <div class="head-actions">
-      <button class="icon-btn" title="搜尋" onclick="toast('搜尋功能示意')">🔍</button>
       <a class="icon-btn" title="線上訂購" href="products/">🛒</a>
       <button class="burger" onclick="toggleMenu()" aria-label="選單">☰</button>
     </div>
@@ -463,8 +479,10 @@
 <div class="mmenu" id="mmenu" onclick="if(event.target===this)toggleMenu()">
   <div class="panel">
     <button class="x" onclick="toggleMenu()">✕</button>
+    <a href="products/" onclick="toggleMenu()">🛒 線上商店</a>
+    <a href="products/manfu-chili-sauce/" onclick="toggleMenu()">🌶️ 滿福果仁辣醬</a>
+    <a href="order/" onclick="toggleMenu()">📦 查詢訂單</a>
     <a href="#categories" onclick="toggleMenu()">商品分類</a>
-    <a href="#products" onclick="toggleMenu()">熱門商品</a>
     <a href="#about" onclick="toggleMenu()">關於我們</a>
     <a href="#recipe" onclick="toggleMenu()">食譜提案</a>
     <a href="#contact" onclick="toggleMenu()">聯絡我們</a>
