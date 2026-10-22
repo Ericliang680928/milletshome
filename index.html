@@ -274,7 +274,7 @@
     <div class="right">
       <span>📍 苗栗市新庄街292號</span>
       <a href="tel:037337667">📞 037-337667</a>
-      <a href="#">💬 LINE 線上客服</a>
+      <a href="https://lin.ee/6xBvJta" target="_blank" rel="noopener">💬 LINE 線上客服</a>
     </div>
   </div>
 </div>
@@ -418,11 +418,10 @@
       <div>
         <span class="eyebrow" style="color:#fff;opacity:.9">RECIPE & NEWS</span>
         <h2>不知道煮什麼？讓米樂家給你靈感</h2>
-        <p>訂閱電子報，每週收到當令食譜提案、新品上架與專屬優惠，跟著買、跟著煮，輕鬆上桌。</p>
-        <form class="nl" onsubmit="subscribe(event)">
-          <input type="email" placeholder="輸入你的 Email" required>
-          <button class="btn" style="background:#fff;color:var(--sun-red)">訂閱優惠</button>
-        </form>
+        <p>加入米樂家 LINE 官方帳號，收到食譜提案、新品上架與專屬優惠，有問題也能直接問。</p>
+        <div class="nl" style="align-items:center">
+          <a class="btn" href="https://lin.ee/6xBvJta" target="_blank" rel="noopener" style="background:#06C755;color:#fff;font-size:18px;padding:0 28px">💬 加入 LINE 官方帳號</a>
+        </div>
       </div>
       <div class="vis">🍳</div>
     </div>
@@ -462,7 +461,7 @@
         <ul class="finfo">
           <li>📍 苗栗縣苗栗市新庄街292號<br><span style="color:#a89f93;font-size:13px">（國道1號苗栗交流道 8 分鐘）</span></li>
           <li>📞 <a href="tel:037337667">037-337667</a>　業務 林先生 0939-312091</li>
-          <li>💬 LINE：@037-337667</li>
+          <li>💬 <a href="https://lin.ee/6xBvJta" target="_blank" rel="noopener">LINE 官方帳號</a></li>
           <li>🕗 週一至週六 08:00–17:00（週日公休）</li>
         </ul>
       </div>
@@ -521,7 +520,7 @@ function toggleMenu(){document.getElementById('mmenu').classList.toggle('open');
 let toastT;
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
   clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1800);}
-function subscribe(e){e.preventDefault();e.target.reset();toast("電子報籌備中，請先加 LINE 官方帳號 ✓");}
+
 
 /* ====== 初始化 ====== */
 renderFilters();renderGrid();updateCart();
