@@ -139,7 +139,7 @@ table.it td.n,table.it th.n{text-align:right}
     <section id="pane-orders">
       <div class="stats" id="stats"></div>
       <div class="bar" id="fbar"></div>
-      <div class="bar"><input class="in" id="q" placeholder="搜尋：訂單編號、姓名、電話" aria-label="搜尋訂單"><button class="btn g sm" id="reload" type="button">重新整理</button><button class="btn o sm" id="csv" type="button">匯出 Excel（CSV）</button><span class="note" id="upd"></span></div>
+      <div class="bar"><input class="in" id="q" placeholder="搜尋：訂單編號、姓名、電話" aria-label="搜尋訂單"><button class="btn g sm" id="reload" type="button">重新整理</button><button class="btn o sm" id="csv" type="button">匯出 Excel</button><span class="note" id="upd"></span></div>
       <div id="olist"></div>
     </section>
 
@@ -240,13 +240,40 @@ $('olist').addEventListener('click',async e=>{
   const d=e.target.closest('[data-delo]');if(d){if(!confirm('確定永久刪除這筆訂單？（一般建議改成「已取消」即可）'))return;try{await api('mf_admin_delete_order',{oid:+d.dataset.delo});await loadOrders();}catch(er){alert('刪除失敗：'+errTxt(er));}}
 });
 $('reload').onclick=loadOrders;setInterval(()=>{if(CODE&&!$('pane-orders').classList.contains('hide'))loadOrders();},60000);
-$('csv').onclick=()=>{
-  const q=$('q').value.trim().toLowerCase(),L=ORD.filter(o=>(FIL==='全部'||o.status===FIL)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));
-  const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項明細','商品小計','運費','合計','顧客備註','內部備註'];
+/* 匯出 Excel（SheetJS，點擊時才載入；載入失敗退回 CSV） */
+function filteredOrders(){const q=$('q').value.trim().toLowerCase();return ORD.filter(o=>(FIL==='全部'||o.status===FIL)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));}
+const tpe=d=>new Date(d).toLocaleString('sv-SE',{timeZone:'Asia/Taipei'}).slice(0,16);
+function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='../assets/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+function exportCsv(L){
+  const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註'];
   const c=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const rows=L.map(o=>[o.order_no,new Date(o.created_at).toLocaleString('sv-SE',{timeZone:'Asia/Taipei'}),o.status,o.name,"'"+o.tel,o.delivery,o.addr,o.pay,o.last5||'',o.items.map(i=>i.name+' × '+i.qty+(i.free?'＋贈'+i.free:'')).join('；'),o.subtotal,o.ship,o.total,o.note,o.admin_note]);
+  const rows=[];L.forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,"'"+o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,o.subtotal,o.ship,o.total,o.note,o.admin_note])));
   const blob=new Blob(['﻿'+[H].concat(rows).map(r=>r.map(c).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='米樂家果仁辣醬訂單_'+dayKey(new Date())+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='米樂家果仁辣醬訂單_'+dayKey(new Date())+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+$('csv').onclick=async()=>{
+  const L=filteredOrders();if(!L.length){alert('目前沒有可匯出的訂單');return;}
+  const b=$('csv');b.disabled=true;b.textContent='產生中…';
+  try{await loadXlsx();}catch(e){b.disabled=false;b.textContent='匯出 Excel';exportCsv(L);return;}
+  try{
+    const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註'];
+    const rows=[];L.forEach(o=>o.items.forEach((i,k)=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,k===0?o.subtotal:null,k===0?o.ship:null,k===0?o.total:null,o.note,o.admin_note])));
+    const ws=XLSX.utils.aoa_to_sheet([H].concat(rows));
+    const n=rows.length,R=n+1; /* 合計列：用公式，排除「已取消」靠篩選自行處理 */
+    const col=i=>XLSX.utils.encode_col(i);
+    const sumRow=['合計','','','','','','','','',L.length+' 張訂單',{f:`SUM(${col(10)}2:${col(10)}${R})`},{f:`SUM(${col(11)}2:${col(11)}${R})`},{f:`SUM(${col(12)}2:${col(12)}${R})`},'',{f:`SUM(${col(14)}2:${col(14)}${R})`},{f:`SUM(${col(15)}2:${col(15)}${R})`},{f:`SUM(${col(16)}2:${col(16)}${R})`},'',''];
+    XLSX.utils.sheet_add_aoa(ws,[sumRow],{origin:R+1});
+    ws['!cols']=[14,16,8,10,14,14,36,10,10,14,7,7,9,8,10,8,10,34,44].map(w=>({wch:w}));
+    ws['!freeze']={xSplit:0,ySplit:1};ws['!autofilter']={ref:`A1:${col(H.length-1)}${R}`};
+    /* 電話存文字、金額存數字 */
+    for(let r=2;r<=R;r++){const t=ws[col(4)+r];if(t){t.t='s';t.v=String(t.v);}}
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'訂單');
+    /* 第二頁：品項彙總 */
+    const M={};L.filter(o=>o.status!=='已取消').forEach(o=>o.items.forEach(i=>{const m=M[i.name]||(M[i.name]={q:0,f:0,amt:0});m.q+=i.qty;m.f+=i.free||0;m.amt+=i.price*i.qty;}));
+    const S=[['品項','數量','贈送','出貨總數','金額（不含已取消）']].concat(Object.keys(M).map(k=>[k,M[k].q,M[k].f,M[k].q+M[k].f,M[k].amt]));
+    const ws2=XLSX.utils.aoa_to_sheet(S);ws2['!cols']=[{wch:16},{wch:8},{wch:8},{wch:10},{wch:18}];XLSX.utils.book_append_sheet(wb,ws2,'品項彙總');
+    XLSX.writeFile(wb,'米樂家果仁辣醬訂單_'+dayKey(new Date())+'.xlsx');
+  }catch(e){alert('匯出失敗：'+e.message);}
+  b.disabled=false;b.textContent='匯出 Excel';};
 
 /* 商品 */
 const imgsOf=s=>String(s||'').split('|').map(x=>x.trim()).filter(Boolean);
