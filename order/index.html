@@ -240,7 +240,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const money=n=>Number(n).toLocaleString('en-US');
 mfGet('mf_settings?select=*').then(r=>r.forEach(x=>SET[x.key]=x.value)).catch(()=>{});
 /* 訂單文字（給完成頁顯示、複製、查詢共用） */
-const STI={'新訂單':0,'已確認':1,'已出貨':2,'已完成':3,'已取消':4};
+const STI={'新訂單':0,'已確認':1,'已出貨':2,'已收款':3,'已完成':3,'已取消':4};
 const fmtTime=d=>new Date(d).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
 function orderText(o,full){
   const L=['米樂家食材・滿福果仁辣醬 訂單','訂單編號：'+o.order_no,'下單時間：'+fmtTime(o.created_at)];

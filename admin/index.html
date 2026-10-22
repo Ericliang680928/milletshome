@@ -68,7 +68,7 @@ label.l{display:block;font-weight:700;font-size:14px;margin-bottom:4px;color:var
 .ohead .tt{font-family:var(--serif);font-weight:700;color:var(--red);font-size:18px;white-space:nowrap}
 @media(max-width:700px){.ohead{grid-template-columns:1fr auto}.ohead .tt{grid-column:2}}
 .st{display:inline-block;border-radius:999px;padding:2px 12px;font-size:13px;font-weight:700;white-space:nowrap}
-.st.s0{background:#FBE0D8;color:#A83219}.st.s1{background:#FFF0CC;color:#7A4B00}.st.s2{background:#DDEAF7;color:#1F4F7C}.st.s3{background:var(--green-l);color:var(--green-d)}.st.s4{background:#ECE8E0;color:#6F675F}
+.st.s0{background:#FBE0D8;color:#A83219}.st.s1{background:#FFF0CC;color:#7A4B00}.st.s2{background:#DDEAF7;color:#1F4F7C}.st.s3{background:#E6F0DA;color:#3E6B1F}.st.s4{background:var(--green-l);color:var(--green-d)}.st.s5{background:#ECE8E0;color:#6F675F}
 .obody{display:none;border-top:1px dashed var(--line);padding:14px 16px;background:#FFFDF8}
 .ord.open .obody{display:block}
 .obody dl{display:grid;grid-template-columns:90px 1fr;gap:4px 12px;margin:0 0 12px}
@@ -190,7 +190,7 @@ table.it td.n,table.it th.n{text-align:right}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n||0).toLocaleString('en-US');
-const STS=['新訂單','已確認','已出貨','已完成','已取消'];
+const STS=['新訂單','已確認','已出貨','已收款','已完成','已取消'];
 let CODE='',ORD=[],PRD=[],FIL='全部',editImgs=[];
 const msg=(el,t,ok)=>{el.className=ok?'ok':'err';el.textContent=t;el.classList.toggle('hide',!t);};
 const errTxt=e=>e.status===401||/unauthorized/i.test(e.message)?'通關碼不正確或已失效，請重新登入':(e.message||'發生錯誤');
