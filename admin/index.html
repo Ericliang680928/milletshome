@@ -240,7 +240,7 @@ $('fbar').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(b
 $('q').addEventListener('input',()=>renderOrders());
 function renderOrders(){
   const q=$('q').value.trim().toLowerCase();
-  const L=ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));
+  const L=ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel+(o.note||'')).toLowerCase().includes(q)));
   $('olist').innerHTML=L.length?L.map(o=>{const si=STS.indexOf(o.status);
     const rows=o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('');
     return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
@@ -255,7 +255,7 @@ $('olist').addEventListener('click',async e=>{
 });
 $('reload').onclick=loadOrders;setInterval(()=>{if(CODE&&!$('pane-orders').classList.contains('hide'))loadOrders();},60000);
 /* 匯出 Excel（SheetJS，點擊時才載入；載入失敗退回 CSV） */
-function filteredOrders(){const q=$('q').value.trim().toLowerCase();return ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));}
+function filteredOrders(){const q=$('q').value.trim().toLowerCase();return ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel+(o.note||'')).toLowerCase().includes(q)));}
 const tpe=d=>new Date(d).toLocaleString('sv-SE',{timeZone:'Asia/Taipei'}).slice(0,16);
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='../assets/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
 function exportCsv(L){

@@ -249,6 +249,15 @@ footer .bg img{margin:0;height:56px}
 .dealbox .txt .save{display:inline-block;background:var(--yellow);color:var(--charcoal);font-weight:700;border-radius:999px;padding:2px 12px;margin-top:8px;font-size:14px}
 @media(max-width:640px){.dealbox{grid-template-columns:1fr;text-align:center;gap:8px;padding:18px}.heroimg .burst{width:92px;height:92px;right:6px;top:6px}.heroimg .burst b{font-size:23px}.promobar{font-size:13.5px}.promobar b{font-size:15px;padding:1px 9px}}
 .prod .promo{background:var(--red);color:#fff;font-size:16px;padding:7px 14px;border-radius:999px}
+.groupbox{background:#fff;border:2px dashed var(--green);border-radius:20px;padding:18px 22px;margin:0 0 22px}
+.groupbox h3{font-size:20px;margin-bottom:4px}.groupbox>p{margin:0 0 12px;color:var(--ink2);font-size:15px}
+.gtbl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.gtbl div{background:var(--green-l);border-radius:14px;padding:10px 8px;text-align:center;font-size:14px;color:var(--ink2)}
+.gtbl b{display:block;color:var(--green-d);font-size:18px;font-family:var(--serif)}
+.gtbl strong{display:block;color:var(--red);font-size:19px;font-family:var(--serif)}
+.gbtns{display:flex;gap:10px;flex-wrap:wrap}
+.gfine{font-size:13px;color:var(--ink2);margin-top:8px}
+@media(max-width:640px){.gtbl{gap:6px}.gtbl div{padding:8px 4px;font-size:12.5px}.gtbl b{font-size:16px}.gtbl strong{font-size:17px}}
 .crow .upsell{display:block;color:var(--red-d);font-weight:700;font-size:13px;margin-top:2px}
 @media(prefers-reduced-motion:reduce){.heroimg .burst{animation:none}}
 </style>
@@ -322,6 +331,7 @@ footer .bg img{margin:0;height:56px}
   <p class="sub">填好收件資料送出訂單，米樂家會與您確認付款與出貨。</p>
   <div class="notice" id="notice" hidden></div>
   <div class="dealbox" id="dealBox" hidden></div>
+  <div class="groupbox" id="groupBox" hidden></div>
   <div class="shop">
     <div id="prods"></div>
     <aside class="cart" id="cart" aria-live="polite">
@@ -339,6 +349,7 @@ footer .bg img{margin:0;height:56px}
         <div class="fld"><span class="lb">付款方式</span><div class="seg" id="segPay"></div></div>
         <div class="bank" id="bankBox" hidden></div>
         <div class="fld" id="last5Box" hidden><label for="f-last5">匯款帳號末 5 碼（選填）</label><input class="in" id="f-last5" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="已匯款請填，之後匯款也可再告知"></div>
+        <div class="fld"><label for="f-ref">誰推薦你的？（選填）</label><input class="in" id="f-ref" maxlength="40" placeholder="朋友的姓名，或電話後 4 碼" autocomplete="off"></div>
         <div class="fld"><label for="f-note">備註（選填）</label><textarea class="in" id="f-note" maxlength="300" placeholder="例：希望到貨時段、送禮留言"></textarea></div>
         <button class="btn btn-red" type="submit" id="subBtn">送出訂單</button>
         <div class="fine">訂購資料僅供本次出貨與聯繫使用。</div>
@@ -405,8 +416,9 @@ let PRODUCTS=[],SET={ship_fee:100,free_over:1000,stores:['苑裡野草','中苗�
 let cart={};try{cart=JSON.parse(localStorage.getItem('mf_cart')||'{}')||{};}catch(e){}
 const $=id=>document.getElementById(id);
 /* 推薦連結：?ref=訂單編號（不放姓名電話），下單時記進備註，供後台對照 */
-let REF='';try{const m=new URLSearchParams(location.search).get('ref');if(m&&/^MF\d{6}-\d{4}$/.test(m)){REF=m;sessionStorage.setItem('mf_ref',m);}else REF=sessionStorage.getItem('mf_ref')||'';}catch(e){}
-const withRef=n=>REF?('【推薦單號 '+REF+'】'+(n?'\n'+n:'')).slice(0,300):n;
+let REF='';/* 推薦連結帶進來的單號會預先填入「誰推薦你的」欄位 */
+try{const m=new URLSearchParams(location.search).get('ref');if(m&&/^MF\d{6}-\d{4}$/.test(m)){REF=m;sessionStorage.setItem('mf_ref',m);}else REF=sessionStorage.getItem('mf_ref')||'';}catch(e){}
+const withRef=(n,r)=>{r=(r||'').trim();const tag=r?('【推薦人：'+r+'】'):'';return tag?(tag+(n?'\n'+n:'')).slice(0,300):n;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('en-US');
 const save=()=>{try{localStorage.setItem('mf_cart',JSON.stringify(cart));}catch(e){}};
@@ -424,18 +436,25 @@ async function load(){
   Object.keys(cart).forEach(id=>{if(!prod(id)||prod(id).sold_out)delete cart[id];});
   const p0=PRODUCTS[0];if(p0)$('heroPrice').innerHTML='NT$ '+money(p0.price)+'<small>／'+esc(p0.unit)+'</small>';
   renderPromo(p0);
+  if(REF&&!$('f-ref').value)$('f-ref').value='單號 '+REF;
   if(SET.notice){$('notice').textContent=SET.notice;$('notice').hidden=false;}
   $('f-store').innerHTML=(SET.stores||[]).map(s=>'<option>'+esc(s)+'</option>').join('');
   renderProds();renderCart();renderFaq();renderBank();
 }
 function renderPromo(p){
   const on=p&&p.promo_buy>0&&p.promo_free>0&&!p.sold_out;
-  ['promoBar','heroBurst','heroPromo','dealBox'].forEach(i=>{$(i).hidden=!on;});
+  ['promoBar','heroBurst','heroPromo','dealBox','groupBox'].forEach(i=>{$(i).hidden=!on;});
   if(!on)return;
   const b=p.promo_buy,f=p.promo_free,u=esc(p.unit),tot=p.price*b,per=Math.round(tot/(b+f)),sv=p.price*(b+f)-tot;
   $('promoBar').firstElementChild.innerHTML='🎉 限時活動 <b>買 '+b+' 送 '+f+'</b> 滿福果仁辣醬 <u>立即訂購 →</u>';
   $('heroBurst').innerHTML='<small>限時活動</small><b>買 '+b+'</b><b>送 '+f+'</b>';
   $('heroPromo').innerHTML='🎁 買 '+b+' '+u+'送 '+f+' '+u+'，共 '+(b+f)+' '+u+'只要 NT$ '+money(tot)+'<small>平均每'+u+'約 NT$ '+per+'，買越多送越多（買 '+(b*2)+' 送 '+(f*2)+'）</small>';
+  const fr=SET.free_over>0&&tot>=SET.free_over?'，宅配免運':'';
+  const mk=n=>{const j=(b+f)/n;return Number.isInteger(j)?'<div><b>'+n+' 人合購</b>每人 '+j+' '+u+'<strong>約 NT$ '+money(Math.round(tot/n))+'</strong></div>':'';};
+  $('groupBox').innerHTML='<h3>👫 揪團更划算</h3><p>找朋友、同事或鄰居一起買，由<b>一個人下單</b>，'+(b+f)+' '+u+'只要 NT$ '+money(tot)+fr+'，再自行分攤。</p><div class="gtbl">'+mk(2)+mk(3)+mk(6)+'</div><div class="gbtns"><button type="button" class="btn btn-red sm" id="gGo">我要揪團：'+(b+f)+' '+u+'（買 '+b+' 送 '+f+'）</button><button type="button" class="btn btn-line sm" id="gGo2">團購 '+((b+f)*2)+' '+u+'（買 '+(b*2)+' 送 '+(f*2)+'）</button><button type="button" class="btn btn-line sm" id="gCopy">複製揪團訊息</button></div><div class="gfine" id="gMsg">贈品只在同一張訂單內計算，所以請由團長統一下單。</div>';
+  const go=n=>{cart[p.id]=n;save();$('done').hidden=true;renderCart();toast('已放入購物車');$('cart').scrollIntoView({behavior:'smooth',block:'center'});};
+  $('gGo').onclick=()=>go(b);$('gGo2').onclick=()=>go(b*2);
+  $('gCopy').onclick=async()=>{const t='我要訂米樂家的滿福果仁辣醬（滿滿的堅果，濃、純、香），買 '+b+' 送 '+f+'，'+(b+f)+' '+p.unit+'只要 NT$ '+money(tot)+'，每'+p.unit+'約 NT$ '+per+'。有人要一起買嗎？我來統一下單：'+location.origin+location.pathname;const ok=await copyText(t);$('gMsg').textContent=ok?'已複製，貼到 LINE 揪朋友吧 ✓':'複製失敗';};
   $('dealBox').innerHTML='<div class="big">買 <em>'+b+'</em> 送 <em>'+f+'</em></div><div class="txt"><b>滿福果仁辣醬：買 '+b+' '+u+'，再送 '+f+' '+u+'！</b><p>'+(b+f)+' '+u+'只要 NT$ '+money(tot)+'，平均每'+u+'約 NT$ '+per+'。數量愈多送愈多，加入購物車自動計算贈品。</p><span class="save">等於省下 NT$ '+money(sv)+'</span></div>';
 }
 function renderProds(){
@@ -502,7 +521,7 @@ $('form').addEventListener('submit',async e=>{
   const btn=$('subBtn');btn.disabled=true;btn.textContent='送出中…';
   try{
     const payV=document.querySelector('input[name=pay]:checked').value,delivV=d==='宅配'?'宅配':$('f-store').value;
-    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:withRef(g('f-note')),last5:payV==='轉帳匯款'?last5:'',items:items}});
+    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:withRef(g('f-note'),g('f-ref')),last5:payV==='轉帳匯款'?last5:'',items:items}});
     const snap={order_no:r.order_no,created_at:new Date().toISOString(),items:items.map(x=>{const p=prod(x.id);return {name:p.name,price:p.price,unit:p.unit,qty:x.qty,free:freeOf(p,x.qty)};}),subtotal:r.subtotal,ship:r.ship,total:r.total,delivery:delivV,pay:payV,addr:d==='宅配'?g('f-addr'):'',name:g('f-name'),tel:g('f-tel'),note:g('f-note'),last5:payV==='轉帳匯款'?last5:''};
     LAST=orderText(snap,true);$('doneDet').textContent=LAST;
     cart={};save();
