@@ -65,6 +65,8 @@ label.l{display:block;font-weight:700;font-size:14px;margin-bottom:4px;color:var
 .ohead:hover{background:var(--cream)}
 .ohead .no{font-weight:700;color:var(--charcoal)}
 .ohead .tm{font-size:13px;color:var(--ink2)}
+.rb{display:inline-block;background:var(--yellow);color:var(--charcoal);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;margin-left:6px;vertical-align:1px}.rb.first{background:#eee;color:var(--ink2)}
+.rpt{margin:-4px 0 12px;font-size:14px;color:var(--ink2)}.rpt b{color:var(--red);font-size:16px}
 .ohead .tt{font-family:var(--serif);font-weight:700;color:var(--red);font-size:18px;white-space:nowrap}
 @media(max-width:700px){.ohead{grid-template-columns:1fr auto}.ohead .tt{grid-column:2}}
 .st{display:inline-block;border-radius:999px;padding:2px 12px;font-size:13px;font-weight:700;white-space:nowrap}
@@ -139,6 +141,7 @@ table.it td.n,table.it th.n{text-align:right}
     <section id="pane-orders">
       <div class="stats" id="stats"></div>
       <div class="bar" id="fbar"></div>
+      <div class="rpt" id="rpt"></div>
       <div class="bar"><input class="in" id="q" placeholder="搜尋：訂單編號、姓名、電話" aria-label="搜尋訂單"><button class="btn g sm" id="reload" type="button">重新整理</button><button class="btn o sm" id="csv" type="button">匯出 Excel</button><span class="note" id="upd"></span></div>
       <div id="olist"></div>
     </section>
@@ -214,22 +217,33 @@ const taipei=d=>new Date(d).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour1
 const dayKey=d=>new Date(d).toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
 async function loadOrders(){try{ORD=await api('mf_admin_orders');}catch(e){$('olist').innerHTML='<div class="err">'+esc(errTxt(e))+'</div>';return;}
   $('upd').textContent='更新於 '+new Date().toLocaleTimeString('zh-TW',{hour12:false});renderStats();renderOrders();}
+const normTel=t=>{let d=String(t||'').replace(/\D/g,'');if(d.startsWith('886'))d='0'+d.slice(3);return d;};
+function markRepeat(){ /* 依電話算「第幾次下單」：同一電話、不含已取消，依下單時間排序 */
+  const g={};ORD.forEach(o=>{o._n=0;o._cn=0;});
+  ORD.filter(o=>o.status!=='已取消').sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).forEach(o=>{const k=normTel(o.tel);(g[k]=g[k]||[]).push(o);});
+  Object.values(g).forEach(a=>a.forEach((o,i)=>{o._n=i+1;o._cn=a.length;}));
+}
+const matchFil=o=>FIL==='全部'||(FIL==='回購客人'?o._cn>=2:o.status===FIL);
+const rb=o=>o._n>=2?'<span class="rb">🔁 第 '+o._n+' 次下單</span>':(o._n===1&&o._cn>=2?'<span class="rb first">首購</span>':'');
 function renderStats(){
+  markRepeat();
   const today=dayKey(new Date()),live=ORD.filter(o=>o.status!=='已取消'),td=live.filter(o=>dayKey(o.created_at)===today);
   const sum=a=>a.reduce((x,o)=>x+o.total,0),pend=ORD.filter(o=>o.status==='新訂單').length;
   const jars=live.reduce((x,o)=>x+o.items.reduce((y,i)=>y+i.qty+(i.free||0),0),0);
   $('stats').innerHTML=[['待處理新訂單',pend+' 筆',pend?'hot':''],['今日訂單',td.length+' 筆',''],['今日金額','NT$ '+money(sum(td)),''],['累計（不含取消）','NT$ '+money(sum(live))+'<small style="font-family:inherit;font-size:13px;color:var(--ink2)">　共 '+jars+' 件出貨量</small>','']].map(s=>'<div class="stat '+s[2]+'"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>').join('');
-  const cnt=s=>s==='全部'?ORD.length:ORD.filter(o=>o.status===s).length;
-  $('fbar').innerHTML=['全部'].concat(STS).map(s=>'<button class="pill'+(FIL===s?' on':'')+'" data-f="'+s+'">'+s+'<i>'+cnt(s)+'</i></button>').join('');
+  const cnt=s=>s==='全部'?ORD.length:s==='回購客人'?ORD.filter(o=>o._cn>=2).length:ORD.filter(o=>o.status===s).length;
+  const cus=new Set(live.map(o=>normTel(o.tel))),rpt=new Set(live.filter(o=>o._cn>=2).map(o=>normTel(o.tel)));
+  $('rpt').innerHTML='🔁 回購率：共 <b>'+cus.size+'</b> 位客人，其中 <b>'+rpt.size+'</b> 位買過不只一次（回購率 <b>'+(cus.size?Math.round(rpt.size/cus.size*100):0)+'%</b>）。依電話自動計算，不含已取消。';
+  $('fbar').innerHTML=['全部'].concat(STS,['回購客人']).map(s=>'<button class="pill'+(FIL===s?' on':'')+'" data-f="'+s+'">'+s+'<i>'+cnt(s)+'</i></button>').join('');
 }
 $('fbar').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(b){FIL=b.dataset.f;renderStats();renderOrders();}});
 $('q').addEventListener('input',()=>renderOrders());
 function renderOrders(){
   const q=$('q').value.trim().toLowerCase();
-  const L=ORD.filter(o=>(FIL==='全部'||o.status===FIL)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));
+  const L=ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));
   $('olist').innerHTML=L.length?L.map(o=>{const si=STS.indexOf(o.status);
     const rows=o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('');
-    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b><div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
+    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
     +'<div class="obody"><dl><dt>電話</dt><dd>'+esc(o.tel)+'</dd><dt>取貨方式</dt><dd>'+esc(o.delivery)+(o.addr?'｜'+esc(o.addr):'')+'</dd><dt>付款方式</dt><dd>'+esc(o.pay)+(o.pay==='轉帳匯款'?'　<b style="color:var(--red)">末5碼：'+(o.last5?esc(o.last5):'未填')+'</b>':'')+'</dd>'+(o.note?'<dt>顧客備註</dt><dd>'+esc(o.note)+'</dd>':'')+'</dl>'
     +'<table class="it"><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table>'
     +'<div class="oact"><div class="fld"><label class="l" for="st'+o.id+'">訂單狀態</label><select class="in" id="st'+o.id+'">'+STS.map(s=>'<option'+(s===o.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fld"><label class="l" for="an'+o.id+'">內部備註（只有後台看得到）</label><input class="in" id="an'+o.id+'" value="'+esc(o.admin_note||'')+'"></div><button class="btn g sm" data-saveo="'+o.id+'">儲存</button><button class="btn o sm" data-delo="'+o.id+'" style="color:var(--red)">刪除</button></div></div></div>';}).join(''):'<div class="card note" style="text-align:center">沒有符合的訂單。</div>';
@@ -241,13 +255,13 @@ $('olist').addEventListener('click',async e=>{
 });
 $('reload').onclick=loadOrders;setInterval(()=>{if(CODE&&!$('pane-orders').classList.contains('hide'))loadOrders();},60000);
 /* 匯出 Excel（SheetJS，點擊時才載入；載入失敗退回 CSV） */
-function filteredOrders(){const q=$('q').value.trim().toLowerCase();return ORD.filter(o=>(FIL==='全部'||o.status===FIL)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));}
+function filteredOrders(){const q=$('q').value.trim().toLowerCase();return ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel).toLowerCase().includes(q)));}
 const tpe=d=>new Date(d).toLocaleString('sv-SE',{timeZone:'Asia/Taipei'}).slice(0,16);
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='../assets/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
 function exportCsv(L){
-  const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註'];
+  const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註','第幾次下單'];
   const c=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const rows=[];L.forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,"'"+o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,o.subtotal,o.ship,o.total,o.note,o.admin_note])));
+  const rows=[];L.forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,"'"+o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,o.subtotal,o.ship,o.total,o.note,o.admin_note,o._n?'第'+o._n+'次':''])));
   const blob=new Blob(['﻿'+[H].concat(rows).map(r=>r.map(c).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='米樂家果仁辣醬訂單_'+dayKey(new Date())+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
 $('csv').onclick=async()=>{
@@ -255,14 +269,14 @@ $('csv').onclick=async()=>{
   const b=$('csv');b.disabled=true;b.textContent='產生中…';
   try{await loadXlsx();}catch(e){b.disabled=false;b.textContent='匯出 Excel';exportCsv(L);return;}
   try{
-    const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註'];
-    const rows=[];L.forEach(o=>o.items.forEach((i,k)=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,k===0?o.subtotal:null,k===0?o.ship:null,k===0?o.total:null,o.note,o.admin_note])));
+    const H=['訂單編號','下單時間','狀態','姓名','電話','取貨方式','地址','付款方式','匯款末5碼','品項','數量','贈送','出貨總數','單價','商品小計','運費','合計','顧客備註','內部備註','第幾次下單'];
+    const rows=[];L.forEach(o=>o.items.forEach((i,k)=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,o.tel,o.delivery,o.addr,o.pay,o.last5||'',i.name,i.qty,i.free||0,i.qty+(i.free||0),i.price,k===0?o.subtotal:null,k===0?o.ship:null,k===0?o.total:null,o.note,o.admin_note,o._n?'第'+o._n+'次':''])));
     const ws=XLSX.utils.aoa_to_sheet([H].concat(rows));
     const n=rows.length,R=n+1; /* 合計列：用公式，排除「已取消」靠篩選自行處理 */
     const col=i=>XLSX.utils.encode_col(i);
-    const sumRow=['合計','','','','','','','','',L.length+' 張訂單',{f:`SUM(${col(10)}2:${col(10)}${R})`},{f:`SUM(${col(11)}2:${col(11)}${R})`},{f:`SUM(${col(12)}2:${col(12)}${R})`},'',{f:`SUM(${col(14)}2:${col(14)}${R})`},{f:`SUM(${col(15)}2:${col(15)}${R})`},{f:`SUM(${col(16)}2:${col(16)}${R})`},'',''];
+    const sumRow=['合計','','','','','','','','',L.length+' 張訂單',{f:`SUM(${col(10)}2:${col(10)}${R})`},{f:`SUM(${col(11)}2:${col(11)}${R})`},{f:`SUM(${col(12)}2:${col(12)}${R})`},'',{f:`SUM(${col(14)}2:${col(14)}${R})`},{f:`SUM(${col(15)}2:${col(15)}${R})`},{f:`SUM(${col(16)}2:${col(16)}${R})`},'','',''];
     XLSX.utils.sheet_add_aoa(ws,[sumRow],{origin:R+1});
-    ws['!cols']=[14,16,8,10,14,14,36,10,10,14,7,7,9,8,10,8,10,34,44].map(w=>({wch:w}));
+    ws['!cols']=[14,16,8,10,14,14,36,10,10,14,7,7,9,8,10,8,10,34,44,11].map(w=>({wch:w}));
     ws['!freeze']={xSplit:0,ySplit:1};ws['!autofilter']={ref:`A1:${col(H.length-1)}${R}`};
     /* 電話存文字、金額存數字 */
     for(let r=2;r<=R;r++){const t=ws[col(4)+r];if(t){t.t='s';t.v=String(t.v);}}
