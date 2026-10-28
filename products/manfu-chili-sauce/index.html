@@ -179,6 +179,9 @@ textarea.in{min-height:84px;padding:12px 14px;resize:vertical}
 .done b.no{font-size:22px;color:var(--charcoal);letter-spacing:.04em}
 .odet{background:#fff;border:1px solid #CBDDA5;border-radius:12px;padding:12px 14px;margin:10px 0;color:var(--ink);font-size:15px;line-height:1.75;white-space:pre-line;word-break:break-all}
 .copyrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.sharebox{margin-top:14px;padding:14px;border-radius:16px;background:var(--green-l);border:1.5px dashed var(--green)}
+.sharebox b{color:var(--green-d);display:block;margin-bottom:2px}.sharebox p{margin:0 0 10px;font-size:14px;color:var(--ink2)}
+.btn-lineg{background:#06C755;color:#fff;border-color:#06C755}.btn-lineg:hover{background:#05a948;color:#fff}
 .copyok{color:var(--green-d);font-weight:700;font-size:14px;align-self:center}
 /* 查詢訂單 */
 .lookup{max-width:720px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:22px}
@@ -347,6 +350,8 @@ footer .bg img{margin:0;height:56px}
         <div class="odet" id="doneDet"></div>
         <div id="donePay" class="fine" style="color:inherit"></div>
         <div class="copyrow"><button class="btn btn-red sm" type="button" id="copyBtn">複製訂單內容</button><button class="btn btn-line sm" type="button" id="again">再逛一次</button><span class="copyok" id="copyOk" hidden>已複製 ✓</span></div>
+        <div class="sharebox" id="shareBox"><b>🌶️ 喜歡的話，分享給朋友</b><p>一鍵把官網傳給朋友，讓他也嚐嚐滿滿的堅果香。</p>
+          <div class="copyrow" style="margin-top:0"><button class="btn btn-red sm" type="button" id="shareBtn">分享給朋友</button><a class="btn btn-lineg sm" id="shareLine" href="#" target="_blank" rel="noopener">用 LINE 傳給朋友</a><button class="btn btn-line sm" type="button" id="shareCopy">複製連結</button><span class="copyok" id="shareOk" hidden></span></div></div>
         <div class="fine" style="margin-top:8px">建議截圖或複製保存；之後也可在「查詢訂單」用您留的電話查詢。</div>
       </div>
     </aside>
@@ -399,6 +404,9 @@ const FALLBACK=[{id:'fallback',name:'滿福果仁辣醬',subtitle:'純素・香�
 let PRODUCTS=[],SET={ship_fee:100,free_over:1000,stores:['苑裡野草','中苗門市','竹南金春發'],contact:'',notice:'',bank:''},OFFLINE=false;
 let cart={};try{cart=JSON.parse(localStorage.getItem('mf_cart')||'{}')||{};}catch(e){}
 const $=id=>document.getElementById(id);
+/* 推薦連結：?ref=訂單編號（不放姓名電話），下單時記進備註，供後台對照 */
+let REF='';try{const m=new URLSearchParams(location.search).get('ref');if(m&&/^MF\d{6}-\d{4}$/.test(m)){REF=m;sessionStorage.setItem('mf_ref',m);}else REF=sessionStorage.getItem('mf_ref')||'';}catch(e){}
+const withRef=n=>REF?('【推薦單號 '+REF+'】'+(n?'\n'+n:'')).slice(0,300):n;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('en-US');
 const save=()=>{try{localStorage.setItem('mf_cart',JSON.stringify(cart));}catch(e){}};
@@ -494,10 +502,11 @@ $('form').addEventListener('submit',async e=>{
   const btn=$('subBtn');btn.disabled=true;btn.textContent='送出中…';
   try{
     const payV=document.querySelector('input[name=pay]:checked').value,delivV=d==='宅配'?'宅配':$('f-store').value;
-    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:g('f-note'),last5:payV==='轉帳匯款'?last5:'',items:items}});
+    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:withRef(g('f-note')),last5:payV==='轉帳匯款'?last5:'',items:items}});
     const snap={order_no:r.order_no,created_at:new Date().toISOString(),items:items.map(x=>{const p=prod(x.id);return {name:p.name,price:p.price,unit:p.unit,qty:x.qty,free:freeOf(p,x.qty)};}),subtotal:r.subtotal,ship:r.ship,total:r.total,delivery:delivV,pay:payV,addr:d==='宅配'?g('f-addr'):'',name:g('f-name'),tel:g('f-tel'),note:g('f-note'),last5:payV==='轉帳匯款'?last5:''};
     LAST=orderText(snap,true);$('doneDet').textContent=LAST;
     cart={};save();
+    SHARE_REF=r.order_no;
     $('doneNo').textContent=r.order_no;
     $('doneAmt').textContent='應付金額 NT$ '+money(r.total)+(r.ship?'（含運費 NT$ '+money(r.ship)+'）':'');
     const pay=document.querySelector('input[name=pay]:checked').value;
@@ -526,6 +535,18 @@ function orderText(o,full){
   return L.join('\n');}
 let LAST='';
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();return ok;}catch(_){return false;}}}
+function shareInfo(){
+  const p=PRODUCTS[0]||{},promo=(p.promo_buy>0&&p.promo_free>0)?'現在買 '+p.promo_buy+' 送 '+p.promo_free+'，':'';
+  const url=location.origin+location.pathname+(SHARE_REF?'?ref='+encodeURIComponent(SHARE_REF):'');
+  return {url,text:'我剛訂了米樂家的滿福果仁辣醬，滿滿的堅果，濃、純、香。'+promo+'你也看看：'};
+}
+let SHARE_REF='';
+function shareFlash(t){const k=$('shareOk');k.textContent=t;k.hidden=false;setTimeout(()=>k.hidden=true,2500);}
+$('shareBtn').onclick=async()=>{const i=shareInfo();
+  if(navigator.share){try{await navigator.share({text:i.text,url:i.url});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const ok=await copyText(i.text+i.url);shareFlash(ok?'已複製，貼到 LINE 給朋友吧 ✓':'複製失敗，請改用下方按鈕');};
+$('shareCopy').onclick=async()=>{const i=shareInfo();const ok=await copyText(i.text+i.url);shareFlash(ok?'已複製 ✓':'複製失敗');};
+$('shareLine').onclick=()=>{const i=shareInfo();$('shareLine').href='https://line.me/R/share?text='+encodeURIComponent(i.text+i.url);};
 $('copyBtn').onclick=async()=>{const ok=await copyText(LAST);const k=$('copyOk');k.textContent=ok?'已複製 ✓':'複製失敗，請長按文字手動複製';k.hidden=false;setTimeout(()=>k.hidden=true,2500);};
 $('lkForm').addEventListener('submit',async e=>{e.preventDefault();const t=$('lk-tel').value.trim(),er=$('lkErr'),res=$('lkRes');er.hidden=true;res.innerHTML='';
   if(t.replace(/\D/g,'').length<8){er.textContent='請輸入完整電話號碼';er.hidden=false;return;}
