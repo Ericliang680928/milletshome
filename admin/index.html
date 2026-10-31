@@ -66,6 +66,7 @@ label.l{display:block;font-weight:700;font-size:14px;margin-bottom:4px;color:var
 .ohead .no{font-weight:700;color:var(--charcoal)}
 .ohead .tm{font-size:13px;color:var(--ink2)}
 .rb{display:inline-block;background:var(--yellow);color:var(--charcoal);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;margin-left:6px;vertical-align:1px}.rb.first{background:#eee;color:var(--ink2)}
+.rb.ref{background:var(--green-l);color:var(--green-d)}.rb.warn{background:#fde2dc;color:var(--red-d)}
 .rpt{margin:-4px 0 12px;font-size:14px;color:var(--ink2)}.rpt b{color:var(--red);font-size:16px}
 .ohead .tt{font-family:var(--serif);font-weight:700;color:var(--red);font-size:18px;white-space:nowrap}
 @media(max-width:700px){.ohead{grid-template-columns:1fr auto}.ohead .tt{grid-column:2}}
@@ -224,6 +225,19 @@ function markRepeat(){ /* 依電話算「第幾次下單」：同一電話、不
   Object.values(g).forEach(a=>a.forEach((o,i)=>{o._n=i+1;o._cn=a.length;}));
 }
 const matchFil=o=>FIL==='全部'||(FIL==='回購客人'?o._cn>=2:o.status===FIL);
+/* 推薦人：解析備註裡的【推薦單號】或【推薦人手機後4碼】，對照其他客人的訂單 */
+function refOf(o){
+  const nt=o.note||'',mo=nt.match(/【推薦單號 (MF\d{6}-\d{4})】/),m4=nt.match(/【推薦人手機後4碼：(\d{4})】/),me=normTel(o.tel);
+  if(!mo&&!m4)return '';
+  const when=new Date(o.created_at);
+  if(mo){const x=ORD.find(z=>z.order_no===mo[1]);if(!x)return '<span class="rb warn">👥 推薦單號查無此單</span>';return normTel(x.tel)===me?'<span class="rb warn">👥 自己推薦自己，不算</span>':'<span class="rb ref">👥 推薦人：'+esc(x.name)+'</span>';}
+  const seen={};
+  ORD.filter(z=>z.status!=='已取消'&&z.id!==o.id&&new Date(z.created_at)<when&&normTel(z.tel).slice(-4)===m4[1]).forEach(z=>{const k=normTel(z.tel);if(!seen[k])seen[k]=z.name;});
+  const ks=Object.keys(seen).filter(k=>k!==me);
+  if(!ks.length)return seen[me]?'<span class="rb warn">👥 自己推薦自己，不算</span>':'<span class="rb warn">👥 推薦碼 '+m4[1]+'：查無此人，請確認</span>';
+  if(ks.length===1)return '<span class="rb ref">👥 推薦人：'+esc(seen[ks[0]])+'</span>';
+  return '<span class="rb warn">👥 推薦碼 '+m4[1]+'：有 '+ks.length+' 位符合（'+ks.map(k=>esc(seen[k])).join('、')+'），請確認</span>';
+}
 const rb=o=>o._n>=2?'<span class="rb">🔁 第 '+o._n+' 次下單</span>':(o._n===1&&o._cn>=2?'<span class="rb first">首購</span>':'');
 function renderStats(){
   markRepeat();
@@ -243,7 +257,7 @@ function renderOrders(){
   const L=ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel+(o.note||'')).toLowerCase().includes(q)));
   $('olist').innerHTML=L.length?L.map(o=>{const si=STS.indexOf(o.status);
     const rows=o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('');
-    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
+    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+refOf(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
     +'<div class="obody"><dl><dt>電話</dt><dd>'+esc(o.tel)+'</dd><dt>取貨方式</dt><dd>'+esc(o.delivery)+(o.addr?'｜'+esc(o.addr):'')+'</dd><dt>付款方式</dt><dd>'+esc(o.pay)+(o.pay==='轉帳匯款'?'　<b style="color:var(--red)">末5碼：'+(o.last5?esc(o.last5):'未填')+'</b>':'')+'</dd>'+(o.note?'<dt>顧客備註</dt><dd>'+esc(o.note)+'</dd>':'')+'</dl>'
     +'<table class="it"><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table>'
     +'<div class="oact"><div class="fld"><label class="l" for="st'+o.id+'">訂單狀態</label><select class="in" id="st'+o.id+'">'+STS.map(s=>'<option'+(s===o.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fld"><label class="l" for="an'+o.id+'">內部備註（只有後台看得到）</label><input class="in" id="an'+o.id+'" value="'+esc(o.admin_note||'')+'"></div><button class="btn g sm" data-saveo="'+o.id+'">儲存</button><button class="btn o sm" data-delo="'+o.id+'" style="color:var(--red)">刪除</button></div></div></div>';}).join(''):'<div class="card note" style="text-align:center">沒有符合的訂單。</div>';

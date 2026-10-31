@@ -349,7 +349,7 @@ footer .bg img{margin:0;height:56px}
         <div class="fld"><span class="lb">付款方式</span><div class="seg" id="segPay"></div></div>
         <div class="bank" id="bankBox" hidden></div>
         <div class="fld" id="last5Box" hidden><label for="f-last5">匯款帳號末 5 碼（選填）</label><input class="in" id="f-last5" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="已匯款請填，之後匯款也可再告知"></div>
-        <div class="fld"><label for="f-ref">誰推薦你的？（選填）</label><input class="in" id="f-ref" maxlength="40" placeholder="朋友的姓名，或電話後 4 碼" autocomplete="off"></div>
+        <div class="fld"><label for="f-ref">推薦人手機後 4 碼（選填）</label><input class="in" id="f-ref" inputmode="numeric" maxlength="4" placeholder="朋友推薦您？填他的手機後 4 碼，例如 5678" autocomplete="off"></div>
         <div class="fld"><label for="f-note">備註（選填）</label><textarea class="in" id="f-note" maxlength="300" placeholder="例：希望到貨時段、送禮留言"></textarea></div>
         <button class="btn btn-red" type="submit" id="subBtn">送出訂單</button>
         <div class="fine">訂購資料僅供本次出貨與聯繫使用。</div>
@@ -418,7 +418,7 @@ const $=id=>document.getElementById(id);
 /* 推薦連結：?ref=訂單編號（不放姓名電話），下單時記進備註，供後台對照 */
 let REF='';/* 推薦連結帶進來的單號會預先填入「誰推薦你的」欄位 */
 try{const m=new URLSearchParams(location.search).get('ref');if(m&&/^MF\d{6}-\d{4}$/.test(m)){REF=m;sessionStorage.setItem('mf_ref',m);}else REF=sessionStorage.getItem('mf_ref')||'';}catch(e){}
-const withRef=(n,r)=>{r=(r||'').trim();const tag=r?('【推薦人：'+r+'】'):'';return tag?(tag+(n?'\n'+n:'')).slice(0,300):n;};
+const withRef=(n,r)=>{const t=[];if(REF)t.push('【推薦單號 '+REF+'】');if(r)t.push('【推薦人手機後4碼：'+r+'】');return t.length?(t.join('')+(n?'\n'+n:'')).slice(0,300):n;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('en-US');
 const save=()=>{try{localStorage.setItem('mf_cart',JSON.stringify(cart));}catch(e){}};
@@ -436,7 +436,7 @@ async function load(){
   Object.keys(cart).forEach(id=>{if(!prod(id)||prod(id).sold_out)delete cart[id];});
   const p0=PRODUCTS[0];if(p0)$('heroPrice').innerHTML='NT$ '+money(p0.price)+'<small>／'+esc(p0.unit)+'</small>';
   renderPromo(p0);
-  if(REF&&!$('f-ref').value)$('f-ref').value='單號 '+REF;
+  if(REF){const w=$('f-ref').closest('.fld');w.innerHTML='<label>推薦人</label><div class="fine" style="margin:0">🎁 您是透過朋友的分享連結來的，已自動帶入推薦資料，不用再填。</div>';}
   if(SET.notice){$('notice').textContent=SET.notice;$('notice').hidden=false;}
   $('f-store').innerHTML=(SET.stores||[]).map(s=>'<option>'+esc(s)+'</option>').join('');
   renderProds();renderCart();renderFaq();renderBank();
@@ -516,12 +516,15 @@ $('form').addEventListener('submit',async e=>{
   if(!g('f-name'))return showErr('請填寫收件人姓名'),$('f-name').focus();
   if(!/^[0-9+() -]{8,20}$/.test(g('f-tel')))return showErr('請填寫正確的聯絡電話'),$('f-tel').focus();
   if(d==='宅配'&&g('f-addr').length<5)return showErr('請填寫完整的收件地址'),$('f-addr').focus();
+  const refEl=$('f-ref'),refV=refEl?(refEl.value||'').replace(/\D/g,''):'';
+  if(refV&&refV.length!==4)return showErr('推薦人手機後 4 碼請填 4 個數字，或留空'),refEl.focus();
+  if(refV&&refV===g('f-tel').replace(/\D/g,'').slice(-4))return showErr('推薦人不能是自己，請留空或填朋友的手機後 4 碼'),refEl.focus();
   const last5=g('f-last5').replace(/\D/g,'');if(document.querySelector('input[name=pay]:checked').value==='轉帳匯款'&&last5&&last5.length!==5)return showErr('匯款帳號末 5 碼請填 5 個數字'),$('f-last5').focus();
   const items=Object.keys(cart).filter(prod).map(id=>({id:id,qty:cart[id]}));
   const btn=$('subBtn');btn.disabled=true;btn.textContent='送出中…';
   try{
     const payV=document.querySelector('input[name=pay]:checked').value,delivV=d==='宅配'?'宅配':$('f-store').value;
-    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:withRef(g('f-note'),g('f-ref')),last5:payV==='轉帳匯款'?last5:'',items:items}});
+    const r=await mfRpc('mf_place_order',{p:{name:g('f-name'),tel:g('f-tel'),delivery:delivV,pay:payV,addr:g('f-addr'),note:withRef(g('f-note'),refV),last5:payV==='轉帳匯款'?last5:'',items:items}});
     const snap={order_no:r.order_no,created_at:new Date().toISOString(),items:items.map(x=>{const p=prod(x.id);return {name:p.name,price:p.price,unit:p.unit,qty:x.qty,free:freeOf(p,x.qty)};}),subtotal:r.subtotal,ship:r.ship,total:r.total,delivery:delivV,pay:payV,addr:d==='宅配'?g('f-addr'):'',name:g('f-name'),tel:g('f-tel'),note:g('f-note'),last5:payV==='轉帳匯款'?last5:''};
     LAST=orderText(snap,true);$('doneDet').textContent=LAST;
     cart={};save();
