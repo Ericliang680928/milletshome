@@ -284,6 +284,7 @@ footer .bg img{margin:0;height:56px}
     <div class="chips"><span class="chip"><i></i>純素</span><span class="chip o"><i></i>香麻小辣</span><span class="chip r"><i></i>淨重 250 公克</span></div>
     <div class="cta">
       <a class="btn btn-red" href="#buy">我要訂購</a>
+      <button class="btn btn-line" type="button" id="heroShare">分享給朋友</button><span class="copyok" id="heroShareOk" hidden></span>
       <span class="price-hero" id="heroPrice">NT$ 350<small>／罐</small></span>
     </div>
     <div class="promoline" id="heroPromo" hidden></div>
@@ -545,7 +546,7 @@ $('form').addEventListener('submit',async e=>{
     const snap={order_no:r.order_no,created_at:new Date().toISOString(),items:items.map(x=>{const p=prod(x.id);return {name:p.name,price:p.price,unit:p.unit,qty:x.qty,free:freeOf(p,x.qty)};}),subtotal:r.subtotal,ship:r.ship,total:r.total,delivery:delivV,pay:payV,addr:d==='宅配'?g('f-addr'):'',name:g('f-name'),tel:g('f-tel'),note:g('f-note'),last5:payV==='轉帳匯款'?last5:''};
     LAST=orderText(snap,true);$('doneDet').textContent=LAST;
     cart={};save();
-    SHARE_REF=r.order_no;
+    SHARE_REF=r.order_no;try{localStorage.setItem('mf_lastno',r.order_no);}catch(e){}
     $('doneNo').textContent=r.order_no;
     $('doneAmt').textContent='應付金額 NT$ '+money(r.total)+(r.ship?'（含運費 NT$ '+money(r.ship)+'）':'');
     const pay=document.querySelector('input[name=pay]:checked').value;
@@ -579,11 +580,13 @@ function shareInfo(){
   const url=location.origin+location.pathname+(SHARE_REF?'?ref='+encodeURIComponent(SHARE_REF):'');
   return {url,text:'我剛訂了米樂家的滿福果仁辣醬，滿滿的堅果，濃、純、香。'+promo+'你也看看：'};
 }
-let SHARE_REF='';
+let SHARE_REF='';try{SHARE_REF=localStorage.getItem('mf_lastno')||'';}catch(e){}
 function shareFlash(t){const k=$('shareOk');k.textContent=t;k.hidden=false;setTimeout(()=>k.hidden=true,2500);}
-$('shareBtn').onclick=async()=>{const i=shareInfo();
+async function doShare(flash){const i=shareInfo();
   if(navigator.share){try{await navigator.share({text:i.text,url:i.url});return;}catch(e){if(e&&e.name==='AbortError')return;}}
-  const ok=await copyText(i.text+i.url);shareFlash(ok?'已複製，貼到 LINE 給朋友吧 ✓':'複製失敗，請改用下方按鈕');};
+  const ok=await copyText(i.text+i.url);flash(ok?'已複製，貼到 LINE 給朋友吧 ✓':'複製失敗，請改用下方按鈕');}
+$('shareBtn').onclick=()=>doShare(shareFlash);
+$('heroShare').onclick=()=>doShare(t=>{const k=$('heroShareOk');k.textContent=t;k.hidden=false;setTimeout(()=>k.hidden=true,2500);});
 $('shareCopy').onclick=async()=>{const i=shareInfo();const ok=await copyText(i.text+i.url);shareFlash(ok?'已複製 ✓':'複製失敗');};
 $('shareLine').onclick=()=>{const i=shareInfo();$('shareLine').href='https://line.me/R/share?text='+encodeURIComponent(i.text+i.url);};
 $('copyBtn').onclick=async()=>{const ok=await copyText(LAST);const k=$('copyOk');k.textContent=ok?'已複製 ✓':'複製失敗，請長按文字手動複製';k.hidden=false;setTimeout(()=>k.hidden=true,2500);};
