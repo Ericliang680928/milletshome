@@ -484,7 +484,7 @@ function renderPromo(p){
   $('groupBox').innerHTML='<h3>👫 揪團更划算</h3><p>找朋友、同事或鄰居一起買，由<b>一個人下單</b>，'+(b+f)+' '+u+'只要 NT$ '+money(tot)+fr+'，再自行分攤。</p><div class="gtbl">'+mk(2)+mk(3)+mk(6)+'</div><div class="gbtns"><button type="button" class="btn btn-red sm" id="gGo">我要揪團：'+(b+f)+' '+u+'（買 '+b+' 送 '+f+'）</button><button type="button" class="btn btn-line sm" id="gGo2">團購 '+((b+f)*2)+' '+u+'（買 '+(b*2)+' 送 '+(f*2)+'）</button><button type="button" class="btn btn-line sm" id="gCopy">複製揪團訊息</button></div><div class="gfine" id="gMsg">贈品只在同一張訂單內計算，所以請由團長統一下單。</div>';
   const go=n=>{cart[p.id]=n;save();$('done').hidden=true;renderCart();toast('已放入購物車');$('cart').scrollIntoView({behavior:'smooth',block:'center'});};
   $('gGo').onclick=()=>go(b);$('gGo2').onclick=()=>go(b*2);
-  $('gCopy').onclick=async()=>{const t='我要訂米樂家的滿福果仁辣醬（滿滿的堅果，濃、純、香），買 '+b+' 送 '+f+'，'+(b+f)+' '+p.unit+'只要 NT$ '+money(tot)+'，每'+p.unit+'約 NT$ '+per+'。有人要一起買嗎？我來統一下單：'+location.origin+location.pathname;const ok=await copyText(t);$('gMsg').textContent=ok?'已複製，貼到 LINE 揪朋友吧 ✓':'複製失敗';};
+  $('gCopy').onclick=async()=>{const t='我要訂米樂家的滿福果仁辣醬（滿滿的堅果，濃、純、香），買 '+b+' 送 '+f+'，'+(b+f)+' '+p.unit+'只要 NT$ '+money(tot)+'，每'+p.unit+'約 NT$ '+per+'。有人要一起買嗎？我來統一下單：'+shortUrl('');const ok=await copyText(t);$('gMsg').textContent=ok?'已複製，貼到 LINE 揪朋友吧 ✓':'複製失敗';};
   $('dealBox').innerHTML='<div class="big">買 <em>'+b+'</em> 送 <em>'+f+'</em></div><div class="txt"><b>滿福果仁辣醬：買 '+b+' '+u+'，再送 '+f+' '+u+'！</b><p>'+(b+f)+' '+u+'只要 NT$ '+money(tot)+'，平均每'+u+'約 NT$ '+per+'。數量愈多送愈多，加入購物車自動計算贈品。</p><span class="save">等於省下 NT$ '+money(sv)+'</span></div>';
 }
 function renderProds(){
@@ -592,9 +592,11 @@ function orderText(o,full){
   return L.join('\n');}
 let LAST='';
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();return ok;}catch(_){return false;}}}
+/* 分享用短網址：…/g/?r=訂單編號（g 頁會轉到產品頁） */
+const shortUrl=ref=>location.origin+location.pathname.replace(/products\/manfu-chili-sauce\/?$/,'')+'g/'+(ref?'?r='+encodeURIComponent(ref):'');
 function shareInfo(){
   const p=PRODUCTS[0]||{},promo=(p.promo_buy>0&&p.promo_free>0)?'現在買 '+p.promo_buy+' 送 '+p.promo_free+'，':'';
-  const url=location.origin+location.pathname+(SHARE_REF?'?ref='+encodeURIComponent(SHARE_REF):'');
+  const url=shortUrl(SHARE_REF);
   return {url,text:'我剛訂了米樂家的滿福果仁辣醬，滿滿的堅果，濃、純、香。'+promo+'你也看看：'};
 }
 let SHARE_REF='';try{SHARE_REF=localStorage.getItem('mf_lastno')||'';}catch(e){}
