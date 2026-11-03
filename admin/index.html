@@ -68,6 +68,9 @@ label.l{display:block;font-weight:700;font-size:14px;margin-bottom:4px;color:var
 .rb{display:inline-block;background:var(--yellow);color:var(--charcoal);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;margin-left:6px;vertical-align:1px}.rb.first{background:#eee;color:var(--ink2)}
 .rb.ref{background:var(--green-l);color:var(--green-d)}.rb.warn{background:#fde2dc;color:var(--red-d)}
 .rwsum{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin:0 0 12px}.rwsum summary{cursor:pointer;font-weight:700}.rwsum table{margin-top:8px}.rwb{margin:10px 0;padding:10px 12px;border-radius:12px;background:var(--green-l)}
+.fu{margin:0 0 12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px}.fu summary{cursor:pointer;font-weight:700}
+.fr{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)}.fr:first-of-type{border-top:0}
+.fr .who{min-width:150px;font-weight:700}.fr .who small{display:block;font-weight:400;color:var(--ink2)}.fr .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .rpt{margin:-4px 0 12px;font-size:14px;color:var(--ink2)}.rpt b{color:var(--red);font-size:16px}
 .ohead .tt{font-family:var(--serif);font-weight:700;color:var(--red);font-size:18px;white-space:nowrap}
 @media(max-width:700px){.ohead{grid-template-columns:1fr auto}.ohead .tt{grid-column:2}}
@@ -146,6 +149,7 @@ table.it td.n,table.it th.n{text-align:right}
       <div class="rpt" id="rpt"></div>
       <div class="bar"><input class="in" id="q" placeholder="搜尋：訂單編號、姓名、電話" aria-label="搜尋訂單"><button class="btn g sm" id="reload" type="button">重新整理</button><button class="btn o sm" id="csv" type="button">匯出 Excel</button><span class="note" id="upd"></span></div>
       <div id="rwbox"></div>
+      <div id="fubox"></div>
       <div id="olist"></div>
     </section>
 
@@ -253,6 +257,28 @@ function rwBadge(o){const w=rewardOf(o);if(!w||w.skip)return '';return w.state==
 function rwBody(o){const w=rewardOf(o);if(!w)return '';
   if(w.skip)return '<div class="rwb"><b>推薦回饋</b>：'+esc(w.skip)+'</div>';
   return '<div class="rwb"><b>推薦回饋</b>：推薦人 '+esc(w.who)+'，新客訂單 NT$ '+w.amt/RW+' 罐 × '+RW+' ＝ <b>NT$ '+w.amt+'</b>　'+(w.state==='done'?'<span style="color:var(--green-d)">已發放</span> <button class="btn o sm" data-rw="'+o.id+'">取消已發標記</button>':w.state==='due'?'<button class="btn g sm" data-rw="'+o.id+'">標記已發放</button>':'<span class="note">付款（已收款）後才可發放</span>')+'</div>';}
+/* 客戶跟進：①下單滿 7 天關心＆好評  ②最後一次下單滿 21 天回購提醒（已聯絡會在內部備註記標記） */
+const FU7='【已關心】',FU21='【已提醒回購】',SHOP_URL='https://ericliang680928.github.io/milletshome/products/manfu-chili-sauce/';
+const ageD=o=>Math.floor((Date.now()-new Date(o.created_at))/864e5);
+function fuMsg7(o){return o.name+' 您好，我是米樂家 🌶️\n您訂購的滿福果仁辣醬吃了嗎？好吃嗎？\n想請問您：0～10 分，您會推薦給朋友嗎？（10 分最高）\n也歡迎拍一張拌麵或拌飯的照片給我們，經您同意，我們會放在官網分享。謝謝您！';}
+function fuMsg21(o){return o.name+' 您好，我是米樂家 🌶️\n上次訂購的滿福果仁辣醬，差不多快吃完了吧？\n現在買 5 送 1，一次囤 6 罐更划算，也可以揪朋友一起買：\n'+SHOP_URL+'\n（朋友第一次下單時填您的手機後 4 碼，每罐還有 NT$10 回饋給您 😊）';}
+function renderFollow(){
+  const live=ORD.filter(o=>o.status!=='已取消');
+  const l7=live.filter(o=>ageD(o)>=7&&ageD(o)<=30&&!(o.admin_note||'').includes(FU7)).sort((p,q)=>new Date(q.created_at)-new Date(p.created_at));
+  const last={};live.forEach(o=>{const k=normTel(o.tel);if(!last[k]||new Date(o.created_at)>new Date(last[k].created_at))last[k]=o;});
+  const l21=Object.values(last).filter(o=>ageD(o)>=21&&!(o.admin_note||'').includes(FU21)).sort((p,q)=>new Date(q.created_at)-new Date(p.created_at));
+  const row=(o,k)=>'<div class="fr"><div class="who">'+esc(o.name)+'<small>'+esc(o.tel)+'・'+esc(o.order_no)+'・已 '+ageD(o)+' 天</small></div><div class="acts"><button class="btn g sm" data-fucopy="'+k+o.id+'">複製訊息</button><a class="btn o sm" href="tel:'+esc(normTel(o.tel))+'">打電話</a><button class="btn o sm" data-fudone="'+k+o.id+'">已聯絡</button></div></div>';
+  const sec=(t,L,k)=>'<div style="margin-top:8px"><b>'+t+'（'+L.length+'）</b>'+(L.length?L.map(o=>row(o,k)).join(''):'<div class="note" style="padding:6px 0">目前沒有需要聯絡的客人。</div>')+'</div>';
+  $('fubox').innerHTML='<details class="fu"'+(l7.length+l21.length?' open':'')+'><summary>📞 客戶跟進：第 7 天關心 '+l7.length+' 位，第 21 天回購提醒 '+l21.length+' 位</summary>'+sec('第 7 天關心（問好不好吃、0～10 分、請他分享照片）',l7,'a')+sec('第 21 天回購提醒（最後一次下單已滿 21 天、之後沒再買）',l21,'b')+'</details>';
+}
+$('fubox').addEventListener('click',async e=>{
+  const c=e.target.closest('[data-fucopy]');
+  const d=e.target.closest('[data-fudone]');
+  const t=c||d;if(!t)return;const v=(c?c.dataset.fucopy:d.dataset.fudone),k=v[0],id=+v.slice(1),o=ORD.find(x=>x.id===id);if(!o)return;
+  if(c){const msg=k==='a'?fuMsg7(o):fuMsg21(o);try{await navigator.clipboard.writeText(msg);c.textContent='已複製 ✓';}catch(_){const ta=document.createElement('textarea');ta.value=msg;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();c.textContent='已複製 ✓';}setTimeout(()=>c.textContent='複製訊息',2000);return;}
+  const tag=k==='a'?FU7:FU21;d.disabled=true;
+  try{await api('mf_admin_set_status',{oid:id,st:o.status,anote:tag+((o.admin_note||'')?' '+o.admin_note:'')});await loadOrders();}catch(er){alert('儲存失敗：'+errTxt(er));d.disabled=false;}
+});
 function renderRewards(){
   const g={};ORD.forEach(o=>{const w=rewardOf(o);if(!w||w.skip)return;const x=g[w.tel]||(g[w.tel]={name:w.who,tel:w.tel,n:0,wait:0,due:0,done:0});x.n++;x[w.state]+=w.amt;});
   const L=Object.values(g).sort((p,q)=>q.due-p.due||q.n-p.n);
@@ -260,7 +286,7 @@ function renderRewards(){
 }
 const rb=o=>o._n>=2?'<span class="rb">🔁 第 '+o._n+' 次下單</span>':(o._n===1&&o._cn>=2?'<span class="rb first">首購</span>':'');
 function renderStats(){
-  markRepeat();renderRewards();
+  markRepeat();renderRewards();renderFollow();
   const today=dayKey(new Date()),live=ORD.filter(o=>o.status!=='已取消'),td=live.filter(o=>dayKey(o.created_at)===today);
   const sum=a=>a.reduce((x,o)=>x+o.total,0),pend=ORD.filter(o=>o.status==='新訂單').length;
   const jars=live.reduce((x,o)=>x+o.items.reduce((y,i)=>y+i.qty+(i.free||0),0),0);
