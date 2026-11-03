@@ -444,7 +444,7 @@ let cart={};try{cart=JSON.parse(localStorage.getItem('mf_cart')||'{}')||{};}catc
 const $=id=>document.getElementById(id);
 /* 推薦連結：?ref=訂單編號（不放姓名電話），下單時記進備註，供後台對照 */
 let REF='';/* 推薦連結帶進來的單號會預先填入「誰推薦你的」欄位 */
-try{const m=new URLSearchParams(location.search).get('ref');if(m&&/^MF\d{6}-\d{4}$/.test(m)){REF=m;sessionStorage.setItem('mf_ref',m);}else REF=sessionStorage.getItem('mf_ref')||'';}catch(e){}
+try{const ok=x=>/^MF\d{6}-\d{4}$/.test(x||''),m=new URLSearchParams(location.search).get('ref');if(ok(m)){REF=m;localStorage.setItem('mf_ref',JSON.stringify({r:m,t:Date.now()}));}else{const v=JSON.parse(localStorage.getItem('mf_ref')||'null');if(v&&ok(v.r)&&Date.now()-v.t<14*864e5)REF=v.r;}}catch(e){} /* 推薦連結記住 14 天 */
 const withRef=(n,r)=>{const t=[];if(REF)t.push('【推薦單號 '+REF+'】');if(r)t.push('【推薦人手機後4碼：'+r+'】');return t.length?(t.join('')+(n?'\n'+n:'')).slice(0,300):n;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('en-US');
@@ -606,7 +606,7 @@ function askPhone(flash){ /* 還沒有推薦碼時，先請客人輸入手機找
     if(t.replace(/\D/g,'').length<8){er.textContent='請輸入完整手機號碼';er.hidden=false;return;}
     const b=$('askOk');b.disabled=true;b.textContent='查詢中…';
     try{const rows=(await mfRpc('mf_lookup_orders',{tel_in:t})||[]).filter(o=>o.status!=='已取消').sort((p,q)=>new Date(q.created_at)-new Date(p.created_at));
-      if(!rows.length){er.textContent='查不到這支電話的訂單，您可以按「直接分享」（朋友下單時再填您的手機後 4 碼也可以）。';er.hidden=false;b.disabled=false;b.textContent='確認並分享';return;}
+      if(!rows.length){er.textContent='查不到這支電話的訂單。請確認是下單時留的電話；如果還沒買過，可按「直接分享」（沒有訂單就無法累計回饋）。';er.hidden=false;b.disabled=false;b.textContent='確認並分享';return;}
       SHARE_REF=rows[0].order_no;try{localStorage.setItem('mf_lastno',SHARE_REF);}catch(e){}
       ASKED=true;close();b.disabled=false;b.textContent='確認並分享';doShare(flash);
     }catch(e){er.textContent='查詢失敗，請稍後再試，或按「直接分享」。';er.hidden=false;b.disabled=false;b.textContent='確認並分享';}};
