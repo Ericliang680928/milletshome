@@ -444,7 +444,7 @@ let cart={};try{cart=JSON.parse(localStorage.getItem('mf_cart')||'{}')||{};}catc
 const $=id=>document.getElementById(id);
 /* 推薦連結：?ref=訂單編號（不放姓名電話），下單時記進備註，供後台對照 */
 let REF='';/* 推薦連結帶進來的單號會預先填入「誰推薦你的」欄位 */
-try{const ok=x=>/^MF\d{6}-\d{4}$/.test(x||''),m=new URLSearchParams(location.search).get('ref');if(ok(m)){REF=m;localStorage.setItem('mf_ref',JSON.stringify({r:m,t:Date.now()}));}else{const v=JSON.parse(localStorage.getItem('mf_ref')||'null');if(v&&ok(v.r)&&Date.now()-v.t<14*864e5)REF=v.r;}}catch(e){} /* 推薦連結記住 14 天 */
+try{const ok=x=>/^(MF\d{6}-\d{4}|IMC15-\d{3,10})$/.test(x||''),m=new URLSearchParams(location.search).get('ref');if(ok(m)){REF=m;localStorage.setItem('mf_ref',JSON.stringify({r:m,t:Date.now()}));}else{const v=JSON.parse(localStorage.getItem('mf_ref')||'null');if(v&&ok(v.r)&&Date.now()-v.t<14*864e5)REF=v.r;}}catch(e){} /* 推薦連結記住 14 天 */
 const withRef=(n,r)=>{const t=[];if(REF)t.push('【推薦單號 '+REF+'】');if(r)t.push('【推薦人手機後4碼：'+r+'】');return t.length?(t.join('')+(n?'\n'+n:'')).slice(0,300):n;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n).toLocaleString('en-US');
