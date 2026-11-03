@@ -208,6 +208,11 @@ textarea.in{min-height:84px;padding:12px 14px;resize:vertical}
 @media(max-width:720px){.about{grid-template-columns:1fr;text-align:center;gap:20px}.about h2{text-align:center}.stores{justify-content:center}}
 
 /* FAQ */
+.rv{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;max-width:980px;margin:0 auto}
+.rv figure{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px 20px 16px;position:relative}
+.rv figure:before{content:"“";position:absolute;left:14px;top:-2px;font-family:var(--serif);font-size:54px;line-height:1;color:var(--orange);opacity:.5}
+.rv blockquote{margin:10px 0 12px;font-size:16px;color:var(--ink);white-space:pre-line}
+.rv figcaption{color:var(--ink2);font-size:14px}
 .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 .faq details{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:0 20px}
 .faq summary{cursor:pointer;padding:16px 0;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px;color:var(--charcoal)}
@@ -326,6 +331,12 @@ footer .bg img{margin:0;height:56px}
   </dl></div>
 </div></section>
 
+<section class="sec" id="reviews" hidden><div class="wrap">
+  <span class="lbl">REVIEWS</span><h2 style="text-align:center">買家怎麼說</h2>
+  <p class="sub" style="text-align:center">來自吃過的客人，經本人同意刊登。</p>
+  <div class="rv" id="rvList"></div>
+</div></section>
+
 <section class="sec alt" id="buy"><div class="wrap">
   <span class="lbl">ORDER</span><h2>線上訂購</h2>
   <p class="sub">填好收件資料送出訂單，米樂家會與您確認付款與出貨。</p>
@@ -440,7 +451,7 @@ async function load(){
   if(REF){const w=$('f-ref').closest('.fld');w.innerHTML='<label>推薦人</label><div class="fine" style="margin:0">🎁 您是透過朋友的分享連結來的，已自動帶入推薦資料，不用再填。</div>';}
   if(SET.notice){$('notice').textContent=SET.notice;$('notice').hidden=false;}
   $('f-store').innerHTML=(SET.stores||[]).map(s=>'<option>'+esc(s)+'</option>').join('');
-  renderProds();renderCart();renderFaq();renderBank();
+  renderReviews();renderProds();renderCart();renderFaq();renderBank();
 }
 function renderPromo(p){
   const on=p&&p.promo_buy>0&&p.promo_free>0&&!p.sold_out;
@@ -493,6 +504,11 @@ function renderPay(){
 }
 function renderBank(){const b=$('bankBox'),on=(document.querySelector('input[name=pay]:checked')||{}).value==='轉帳匯款'&&SET.bank;const tr=(document.querySelector('input[name=pay]:checked')||{}).value==='轉帳匯款';$('last5Box').hidden=!tr;b.hidden=!on;if(on)b.innerHTML='<b>轉帳匯款資訊</b>'+esc(SET.bank)+'\n匯款後請在下方填寫帳號末 5 碼（之後匯款也可再告知），核對後出貨。';}
 $('segPay').addEventListener('change',renderBank);
+function renderReviews(){
+  const L=Array.isArray(SET.reviews)?SET.reviews.filter(r=>r&&r.t):[];
+  $('reviews').hidden=!L.length;
+  $('rvList').innerHTML=L.map(r=>'<figure><blockquote>'+esc(r.t)+'</blockquote>'+(r.n?'<figcaption>— '+esc(r.n)+'</figcaption>':'')+'</figure>').join('');
+}
 function renderFaq(){
   const ship=SET.ship_fee>0?('宅配運費 NT$ '+money(SET.ship_fee)+(SET.free_over>0?'，商品滿 NT$ '+money(SET.free_over)+' 免運。':'。')):'宅配免運費。';
   const ct=SET.contact?'<br>聯絡方式：'+esc(SET.contact):'';
