@@ -463,7 +463,10 @@ async function load(){
   Object.keys(cart).forEach(id=>{if(!prod(id)||prod(id).sold_out)delete cart[id];});
   const p0=PRODUCTS[0];if(p0)$('heroPrice').innerHTML='NT$ '+money(p0.price)+'<small>／'+esc(p0.unit)+'</small>';
   renderPromo(p0);
-  if(REF){const w=$('f-ref').closest('.fld');w.innerHTML='<label>推薦人</label><div class="fine" style="margin:0">🎁 您是透過朋友的分享連結來的，已自動帶入推薦資料，不用再填。</div>';}
+  if(REF){const w=$('f-ref').closest('.fld');
+    const base='🎁 您是透過朋友的分享連結來的，已自動帶入推薦資料，不用再填。';
+    w.innerHTML='<label>推薦人</label><div class="fine" id="refInfoBox" style="margin:0">'+base+'</div>';
+    mfRpc('mf_ref_info',{ref:REF}).then(r=>{if(r&&r.name)$('refInfoBox').innerHTML=base+'<br><b>推薦人：'+esc(r.name)+'　電話：'+esc(r.tel)+'</b>';}).catch(()=>{});}
   if(SET.notice){$('notice').textContent=SET.notice;$('notice').hidden=false;}
   $('f-store').innerHTML=(SET.stores||[]).map(s=>'<option>'+esc(s)+'</option>').join('');
   renderReviews();renderProds();renderCart();renderFaq();renderBank();
