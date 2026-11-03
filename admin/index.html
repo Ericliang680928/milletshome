@@ -236,7 +236,7 @@ const matchFil=o=>FIL==='全部'||(FIL==='回購客人'?o._cn>=2:o.status===FIL)
 /* 推薦人：解析備註裡的【推薦單號】或【推薦人手機後4碼】，對照其他客人的訂單 */
 const RW=10, RW_TAG='【回饋已發】', PAID=['已收款','已完成']; /* 回饋：新客每罐(付費罐數) NT$10，朋友付款後才算 */
 function refInfo(o){
-  const nt=o.note||'',mo=nt.match(/【推薦單號 (MF\d{6}-\d{4})】/),m4=nt.match(/【推薦人手機後4碼：(\d{4})】/),me=normTel(o.tel);
+  const nt=o.note||'',mo=nt.match(/【推薦單號 ((?:MF\d{6}-\d{4})|(?:IMC15-\d{3,10}))】/),m4=nt.match(/【推薦人手機後4碼：(\d{4})】/),me=normTel(o.tel);
   if(!mo&&!m4)return null;
   if(mo){const x=ORD.find(z=>z.order_no===mo[1]);if(!x)return {bad:'推薦單號查無此單'};return normTel(x.tel)===me?{bad:'自己推薦自己，不算'}:{ok:1,name:x.name,tel:normTel(x.tel),addr:x.addr};}
   const when=new Date(o.created_at),seen={};
