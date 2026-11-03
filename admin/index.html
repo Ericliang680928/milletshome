@@ -67,6 +67,7 @@ label.l{display:block;font-weight:700;font-size:14px;margin-bottom:4px;color:var
 .ohead .tm{font-size:13px;color:var(--ink2)}
 .rb{display:inline-block;background:var(--yellow);color:var(--charcoal);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;margin-left:6px;vertical-align:1px}.rb.first{background:#eee;color:var(--ink2)}
 .rb.ref{background:var(--green-l);color:var(--green-d)}.rb.warn{background:#fde2dc;color:var(--red-d)}
+.rwsum{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin:0 0 12px}.rwsum summary{cursor:pointer;font-weight:700}.rwsum table{margin-top:8px}.rwb{margin:10px 0;padding:10px 12px;border-radius:12px;background:var(--green-l)}
 .rpt{margin:-4px 0 12px;font-size:14px;color:var(--ink2)}.rpt b{color:var(--red);font-size:16px}
 .ohead .tt{font-family:var(--serif);font-weight:700;color:var(--red);font-size:18px;white-space:nowrap}
 @media(max-width:700px){.ohead{grid-template-columns:1fr auto}.ohead .tt{grid-column:2}}
@@ -144,6 +145,7 @@ table.it td.n,table.it th.n{text-align:right}
       <div class="bar" id="fbar"></div>
       <div class="rpt" id="rpt"></div>
       <div class="bar"><input class="in" id="q" placeholder="搜尋：訂單編號、姓名、電話" aria-label="搜尋訂單"><button class="btn g sm" id="reload" type="button">重新整理</button><button class="btn o sm" id="csv" type="button">匯出 Excel</button><span class="note" id="upd"></span></div>
+      <div id="rwbox"></div>
       <div id="olist"></div>
     </section>
 
@@ -226,21 +228,39 @@ function markRepeat(){ /* 依電話算「第幾次下單」：同一電話、不
 }
 const matchFil=o=>FIL==='全部'||(FIL==='回購客人'?o._cn>=2:o.status===FIL);
 /* 推薦人：解析備註裡的【推薦單號】或【推薦人手機後4碼】，對照其他客人的訂單 */
-function refOf(o){
+const RW=10, RW_TAG='【回饋已發】', PAID=['已收款','已完成']; /* 回饋：新客每罐(付費罐數) NT$10，朋友付款後才算 */
+function refInfo(o){
   const nt=o.note||'',mo=nt.match(/【推薦單號 (MF\d{6}-\d{4})】/),m4=nt.match(/【推薦人手機後4碼：(\d{4})】/),me=normTel(o.tel);
-  if(!mo&&!m4)return '';
-  const when=new Date(o.created_at);
-  if(mo){const x=ORD.find(z=>z.order_no===mo[1]);if(!x)return '<span class="rb warn">👥 推薦單號查無此單</span>';return normTel(x.tel)===me?'<span class="rb warn">👥 自己推薦自己，不算</span>':'<span class="rb ref">👥 推薦人：'+esc(x.name)+'</span>';}
-  const seen={};
-  ORD.filter(z=>z.status!=='已取消'&&z.id!==o.id&&new Date(z.created_at)<when&&normTel(z.tel).slice(-4)===m4[1]).forEach(z=>{const k=normTel(z.tel);if(!seen[k])seen[k]=z.name;});
+  if(!mo&&!m4)return null;
+  if(mo){const x=ORD.find(z=>z.order_no===mo[1]);if(!x)return {bad:'推薦單號查無此單'};return normTel(x.tel)===me?{bad:'自己推薦自己，不算'}:{ok:1,name:x.name,tel:normTel(x.tel),addr:x.addr};}
+  const when=new Date(o.created_at),seen={};
+  ORD.filter(z=>z.status!=='已取消'&&z.id!==o.id&&new Date(z.created_at)<when&&normTel(z.tel).slice(-4)===m4[1]).forEach(z=>{const k=normTel(z.tel);if(!seen[k])seen[k]={name:z.name,addr:z.addr};});
   const ks=Object.keys(seen).filter(k=>k!==me);
-  if(!ks.length)return seen[me]?'<span class="rb warn">👥 自己推薦自己，不算</span>':'<span class="rb warn">👥 推薦碼 '+m4[1]+'：查無此人，請確認</span>';
-  if(ks.length===1)return '<span class="rb ref">👥 推薦人：'+esc(seen[ks[0]])+'</span>';
-  return '<span class="rb warn">👥 推薦碼 '+m4[1]+'：有 '+ks.length+' 位符合（'+ks.map(k=>esc(seen[k])).join('、')+'），請確認</span>';
+  if(!ks.length)return {bad:seen[me]?'自己推薦自己，不算':'推薦碼 '+m4[1]+'：查無此人，請確認'};
+  if(ks.length===1)return {ok:1,name:seen[ks[0]].name,tel:ks[0],addr:seen[ks[0]].addr};
+  return {bad:'推薦碼 '+m4[1]+'：有 '+ks.length+' 位符合（'+ks.map(k=>seen[k].name).join('、')+'），請確認'};
+}
+function refOf(o){const r=refInfo(o);if(!r)return '';return r.ok?'<span class="rb ref">👥 推薦人：'+esc(r.name)+'</span>':'<span class="rb warn">👥 '+esc(r.bad)+'</span>';}
+function rewardOf(o){ /* 新客的訂單、付款後，每罐 NT$10 回饋推薦人 */
+  const r=refInfo(o);if(!r||!r.ok||o.status==='已取消')return null;
+  if(o._n!==1)return {skip:'非新客，不計回饋'};
+  const na=s=>String(s||'').replace(/\s/g,''),sameAddr=na(o.addr).length>=5&&na(o.addr)===na(r.addr),sameName=na(o.name)&&na(o.name)===na(r.name);
+  if(sameAddr||sameName)return {skip:'與推薦人'+(sameAddr?'同收件地址':'同姓名')+'，疑似自己推薦自己，不計回饋（如確定是不同人，請自行發放）'};
+  const amt=RW*o.items.reduce((x,i)=>x+i.qty,0),done=(o.admin_note||'').includes(RW_TAG);
+  return {amt,who:r.name,tel:r.tel,state:done?'done':(PAID.includes(o.status)?'due':'wait')};
+}
+function rwBadge(o){const w=rewardOf(o);if(!w||w.skip)return '';return w.state==='done'?'<span class="rb ref">✅ 回饋 NT$ '+w.amt+' 已發</span>':w.state==='due'?'<span class="rb">💰 回饋 NT$ '+w.amt+' 待發</span>':'<span class="rb first">💰 回饋 NT$ '+w.amt+'（待收款）</span>';}
+function rwBody(o){const w=rewardOf(o);if(!w)return '';
+  if(w.skip)return '<div class="rwb"><b>推薦回饋</b>：'+esc(w.skip)+'</div>';
+  return '<div class="rwb"><b>推薦回饋</b>：推薦人 '+esc(w.who)+'，新客訂單 NT$ '+w.amt/RW+' 罐 × '+RW+' ＝ <b>NT$ '+w.amt+'</b>　'+(w.state==='done'?'<span style="color:var(--green-d)">已發放</span> <button class="btn o sm" data-rw="'+o.id+'">取消已發標記</button>':w.state==='due'?'<button class="btn g sm" data-rw="'+o.id+'">標記已發放</button>':'<span class="note">付款（已收款）後才可發放</span>')+'</div>';}
+function renderRewards(){
+  const g={};ORD.forEach(o=>{const w=rewardOf(o);if(!w||w.skip)return;const x=g[w.tel]||(g[w.tel]={name:w.who,tel:w.tel,n:0,wait:0,due:0,done:0});x.n++;x[w.state]+=w.amt;});
+  const L=Object.values(g).sort((p,q)=>q.due-p.due||q.n-p.n);
+  $('rwbox').innerHTML=L.length?'<details class="rwsum"><summary>🎁 推薦回饋：待發 NT$ '+L.reduce((x,y)=>x+y.due,0)+'，已發 NT$ '+L.reduce((x,y)=>x+y.done,0)+'（'+L.length+' 位推薦人，新客每罐 NT$ '+RW+'，付款後才算）</summary><table class="it"><thead><tr><th>推薦人</th><th class="n">筆數</th><th class="n">待收款</th><th class="n">待發放</th><th class="n">已發放</th></tr></thead><tbody>'+L.map(x=>'<tr><td>'+esc(x.name)+' <small>'+esc(x.tel)+'</small></td><td class="n">'+x.n+'</td><td class="n">'+x.wait+'</td><td class="n"><b>'+x.due+'</b></td><td class="n">'+x.done+'</td></tr>').join('')+'</tbody></table></details>':'';
 }
 const rb=o=>o._n>=2?'<span class="rb">🔁 第 '+o._n+' 次下單</span>':(o._n===1&&o._cn>=2?'<span class="rb first">首購</span>':'');
 function renderStats(){
-  markRepeat();
+  markRepeat();renderRewards();
   const today=dayKey(new Date()),live=ORD.filter(o=>o.status!=='已取消'),td=live.filter(o=>dayKey(o.created_at)===today);
   const sum=a=>a.reduce((x,o)=>x+o.total,0),pend=ORD.filter(o=>o.status==='新訂單').length;
   const jars=live.reduce((x,o)=>x+o.items.reduce((y,i)=>y+i.qty+(i.free||0),0),0);
@@ -257,14 +277,15 @@ function renderOrders(){
   const L=ORD.filter(o=>matchFil(o)&&(!q||(o.order_no+o.name+o.tel+(o.note||'')).toLowerCase().includes(q)));
   $('olist').innerHTML=L.length?L.map(o=>{const si=STS.indexOf(o.status);
     const rows=o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('');
-    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+refOf(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
+    return '<div class="ord'+(o.status==='新訂單'?' new':'')+'" id="o'+o.id+'"><div class="ohead" data-open="'+o.id+'"><div><div class="no">'+esc(o.order_no)+'</div><div class="tm">'+taipei(o.created_at)+'</div></div><div><b>'+esc(o.name)+'</b>'+rb(o)+refOf(o)+rwBadge(o)+'<div class="tm">'+esc(o.delivery)+'・'+esc(o.pay)+'</div></div><span class="st s'+si+'">'+esc(o.status)+'</span><span class="tt">NT$ '+money(o.total)+'</span></div>'
     +'<div class="obody"><dl><dt>電話</dt><dd>'+esc(o.tel)+'</dd><dt>取貨方式</dt><dd>'+esc(o.delivery)+(o.addr?'｜'+esc(o.addr):'')+'</dd><dt>付款方式</dt><dd>'+esc(o.pay)+(o.pay==='轉帳匯款'?'　<b style="color:var(--red)">末5碼：'+(o.last5?esc(o.last5):'未填')+'</b>':'')+'</dd>'+(o.note?'<dt>顧客備註</dt><dd>'+esc(o.note)+'</dd>':'')+'</dl>'
-    +'<table class="it"><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table>'
+    +rwBody(o)+'<table class="it"><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table>'
     +'<div class="oact"><div class="fld"><label class="l" for="st'+o.id+'">訂單狀態</label><select class="in" id="st'+o.id+'">'+STS.map(s=>'<option'+(s===o.status?' selected':'')+'>'+s+'</option>').join('')+'</select></div><div class="fld"><label class="l" for="an'+o.id+'">內部備註（只有後台看得到）</label><input class="in" id="an'+o.id+'" value="'+esc(o.admin_note||'')+'"></div><button class="btn g sm" data-saveo="'+o.id+'">儲存</button><button class="btn o sm" data-delo="'+o.id+'" style="color:var(--red)">刪除</button></div></div></div>';}).join(''):'<div class="card note" style="text-align:center">沒有符合的訂單。</div>';
 }
 $('olist').addEventListener('click',async e=>{
   const h=e.target.closest('[data-open]');if(h){document.getElementById('o'+h.dataset.open).classList.toggle('open');return;}
   const s=e.target.closest('[data-saveo]');if(s){const id=+s.dataset.saveo;s.disabled=true;try{await api('mf_admin_set_status',{oid:id,st:$('st'+id).value,anote:$('an'+id).value});await loadOrders();document.getElementById('o'+id)&&document.getElementById('o'+id).classList.add('open');}catch(er){alert('儲存失敗：'+errTxt(er));}s.disabled=false;return;}
+  const rw=e.target.closest('[data-rw]');if(rw){const id=+rw.dataset.rw,o=ORD.find(x=>x.id===id),cur=o.admin_note||'',nx=cur.includes(RW_TAG)?cur.split(RW_TAG).join('').trim():(RW_TAG+(cur?' '+cur:''));rw.disabled=true;try{await api('mf_admin_set_status',{oid:id,st:o.status,anote:nx});await loadOrders();document.getElementById('o'+id)&&document.getElementById('o'+id).classList.add('open');}catch(er){alert('儲存失敗：'+errTxt(er));}rw.disabled=false;return;}
   const d=e.target.closest('[data-delo]');if(d){if(!confirm('確定永久刪除這筆訂單？（一般建議改成「已取消」即可）'))return;try{await api('mf_admin_delete_order',{oid:+d.dataset.delo});await loadOrders();}catch(er){alert('刪除失敗：'+errTxt(er));}}
 });
 $('reload').onclick=loadOrders;setInterval(()=>{if(CODE&&!$('pane-orders').classList.contains('hide'))loadOrders();},60000);
