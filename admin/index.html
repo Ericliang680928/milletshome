@@ -180,6 +180,7 @@ table.it td.n,table.it th.n{text-align:right}
         <div style="margin-top:12px"><label class="l" for="s-stores">可自取的門市（一行一間）</label><textarea class="in" id="s-stores" rows="4"></textarea></div>
         <div style="margin-top:12px"><label class="l" for="s-contact">顧客聯絡方式（顯示在下單完成頁與常見問題，例：電話或 LINE）</label><input class="in" id="s-contact"></div>
         <div style="margin-top:12px"><label class="l" for="s-bank">轉帳匯款資訊（顧客選「轉帳匯款」時顯示；可換行，例：銀行名稱／代碼／帳號／戶名）</label><textarea class="in" id="s-bank" rows="3"></textarea></div>
+        <div style="margin-top:12px"><label class="l" for="s-reviews">買家心得（顯示在產品頁；一行一則，格式：心得內容｜署名；留空 ＝ 不顯示。請只放真實買家、且經本人同意的話，署名建議用「王小姐」這類寫法，不要寫功效療效）</label><textarea class="in" id="s-reviews" rows="5" placeholder="拌麵超香，堅果很多，一下就吃完了｜王小姐&#10;買給爸媽，他們說不會太辣｜林先生"></textarea></div>
         <div style="margin-top:12px"><label class="l" for="s-notice">首頁公告（購買區上方的橘黃色橫幅；留空 ＝ 不顯示）</label><input class="in" id="s-notice" placeholder="例：10/31 前下單，11/5 前出貨"></div>
         <div id="sMsg" class="hide" style="margin-top:12px"></div>
         <button class="btn g" id="sSave" type="button" style="margin-top:14px">儲存設定</button>
@@ -383,8 +384,8 @@ $('pSave').onclick=async()=>{
 
 /* 設定 */
 async function loadSettings(){try{const rows=await mfGet('mf_settings?select=*'),S={};rows.forEach(r=>S[r.key]=r.value);
-  $('s-fee').value=S.ship_fee??0;$('s-free').value=S.free_over??0;$('s-stores').value=(S.stores||[]).join('\n');$('s-contact').value=S.contact||'';$('s-notice').value=S.notice||'';$('s-bank').value=S.bank||'';}catch(e){}}
-$('sSave').onclick=async()=>{const s={ship_fee:Math.max(0,parseInt($('s-fee').value,10)||0),free_over:Math.max(0,parseInt($('s-free').value,10)||0),stores:$('s-stores').value.split('\n').map(x=>x.trim()).filter(Boolean),contact:$('s-contact').value.trim(),notice:$('s-notice').value.trim(),bank:$('s-bank').value.trim()};
+  $('s-fee').value=S.ship_fee??0;$('s-free').value=S.free_over??0;$('s-stores').value=(S.stores||[]).join('\n');$('s-contact').value=S.contact||'';$('s-notice').value=S.notice||'';$('s-bank').value=S.bank||'';$('s-reviews').value=(Array.isArray(S.reviews)?S.reviews:[]).map(r=>r.t+'｜'+(r.n||'')).join('\n');}catch(e){}}
+$('sSave').onclick=async()=>{const s={ship_fee:Math.max(0,parseInt($('s-fee').value,10)||0),free_over:Math.max(0,parseInt($('s-free').value,10)||0),stores:$('s-stores').value.split('\n').map(x=>x.trim()).filter(Boolean),contact:$('s-contact').value.trim(),notice:$('s-notice').value.trim(),bank:$('s-bank').value.trim(),reviews:$('s-reviews').value.split('\n').map(x=>x.trim()).filter(Boolean).slice(0,12).map(x=>{const i=x.search(/[｜|]/);return i<0?{t:x,n:''}:{t:x.slice(0,i).trim(),n:x.slice(i+1).trim()};}).filter(r=>r.t)};
   try{await api('mf_admin_save_settings',{s});msg($('sMsg'),'已儲存，前台重新整理後生效。',true);}catch(e){msg($('sMsg'),'儲存失敗：'+errTxt(e));}};
 $('cSave').onclick=async()=>{const a=$('c-new').value,b=$('c-new2').value;if(a.length<6)return msg($('cMsg'),'新通關碼至少 6 碼');if(a!==b)return msg($('cMsg'),'兩次輸入不一致');
   try{await api('mf_admin_change_code',{newcode:a});CODE=a;try{sessionStorage.setItem('mf_code',a);}catch(_){}$('c-new').value=$('c-new2').value='';msg($('cMsg'),'通關碼已更改，下次登入請用新的。',true);}catch(e){msg($('cMsg'),'更改失敗：'+errTxt(e));}};
