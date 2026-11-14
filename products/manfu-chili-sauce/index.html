@@ -460,7 +460,7 @@ const freeOf=(p,q)=>(p.promo_buy>0&&p.promo_free>0)?Math.floor(q/p.promo_buy)*p.
 async function load(){
   try{
     const [ps,st]=await Promise.all([mfGet('mf_products?select=*&order=sort,created_at'),mfGet('mf_settings?select=*')]);
-    PRODUCTS=ps; st.forEach(r=>{SET[r.key]=r.value;});
+    PRODUCTS=ps.filter(p=>(p.page||'main')==='main'); st.forEach(r=>{SET[r.key]=r.value;});
     if(!PRODUCTS.length)throw new Error('empty');
   }catch(e){PRODUCTS=FALLBACK;OFFLINE=true;}
   SET.ship_fee=Number(SET.ship_fee)||0;SET.free_over=Number(SET.free_over)||0;
