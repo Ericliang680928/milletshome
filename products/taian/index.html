@@ -273,20 +273,54 @@ footer .bg img{margin:0;height:56px}
 .crow .upsell{display:block;color:var(--red-d);font-weight:700;font-size:13px;margin-top:2px}
 @media(prefers-reduced-motion:reduce){.heroimg .burst{animation:none}}
 </style>
+<style id="taian-theme">
+/* 泰安觀止 風格：墨黑底、細明體字距、竹綠點綴 */
+:root{--cream:#121311;--cream2:#181a17;--paper:#1c1f1b;--ink:#E6E3D9;--ink2:#A9A69B;--charcoal:#F3F0E6;--line:#363a35;
+--green:#9BC53D;--green-d:#B3D86B;--green-l:#20271A;--red:#9BC53D;--red-d:#B3D86B;--orange:#9BC53D;--yellow:#C9D98E;--brown:#B7A98A;--plum:#B7A98A}
+body{background:#121311;font-weight:300;letter-spacing:.04em}
+h1,h2,h3{font-weight:300!important;letter-spacing:.14em}
+.hero h1 em{color:var(--green)}
+.nav{background:rgba(11,11,9,.94);border-bottom:1px solid var(--line)}
+.nav .lk{color:#CFCCC1;letter-spacing:.12em}
+.brand{font-weight:300;letter-spacing:.2em;font-size:14px;color:#BDBAAE}
+.brand img{height:50px;width:auto}
+.tianbar{background:#0B0B09;color:#CFCCC1;text-align:center;font-size:13px;letter-spacing:.4em;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:300}
+.btn-red{background:var(--green);color:#10130c;border-color:var(--green);letter-spacing:.12em}.btn-red:hover{background:#B3D86B;color:#10130c}
+.btn-line{background:transparent;color:var(--green-d);border-color:var(--green)}.btn-line:hover{background:var(--green-l)}
+.cartbtn{background:var(--green);color:#10130c}.cartbtn .n{background:#10130c;color:var(--green)}
+.chip,.nut,.stores span{background:transparent;color:var(--ink);border-color:#4a4f48}
+.chip i{background:var(--green)}
+.spec .warn,.notice,.bank{background:#232018;border-color:#4a4228;color:#E2D3A6}
+.stepper{background:#161815;border-color:#4a4f48}
+.in,.seg label{background:#161815;border-color:#454a43;color:var(--ink)}
+.in::placeholder{color:#7d7a70}
+.seg input:checked+label{background:var(--green-l);border-color:var(--green);color:var(--green-d)}
+.odet{background:#161815;border-color:#3e4a2c;color:var(--ink)}
+.msg.err{background:#3a1f1a;color:#F1C2B6;border-color:#6a3328}
+.price-hero{color:var(--ink)}
+.lbl{letter-spacing:.35em!important;font-weight:300!important}
+.sec h2::after{content:"";display:block;width:56px;height:1px;background:var(--green);margin:16px auto 0;opacity:.8}
+.sec[id="buy"] h2::after{margin-left:0}
+.tianhero{margin:0 0 18px}.tianhero img{width:min(260px,70%);height:auto;border-radius:4px;border:1px solid var(--line)}.tianhero p{margin:10px 0 0;font-size:14px;letter-spacing:.3em;color:#CFCCC1}
+.tianorder{display:flex;align-items:center;gap:14px;margin:0 0 18px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#0B0B09;font-size:14px;color:#CFCCC1}.tianorder img{height:44px;width:auto;border-radius:3px;flex:none}
+.hero::before{background:radial-gradient(circle at 40% 40%,#9BC53D 0%,rgba(155,197,61,.25) 40%,rgba(155,197,61,0) 70%)!important;opacity:.16!important}
+footer{background:#0B0B09!important;color:#A9A69B!important}
+</style>
 </head>
 <body>
 
-<div class="promobar" style="background:var(--green-d)">泰安觀止溫泉會館　專屬訂購頁</div>
+<div class="tianbar">泰安觀止溫泉會館　專用訂單頁</div>
 <div class="promobar" id="promoBar" hidden><a href="#buy"></a></div>
 <nav class="nav"><div class="nin">
-  <a class="brand" href="../../"><img src="assets/img/logo-mark.png" alt="">米樂家食材</a>
-  <a class="lk" href="../">全部產品</a><a class="lk" href="#feature">產品特色</a><a class="lk" href="#eat">怎麼吃</a><a class="lk" href="#spec">成分規格</a><a class="lk" href="#lookup">查詢訂單</a><a class="lk" href="#about">關於米樂家</a>
+  <a class="brand" href="#top"><img src="assets/img/taian-logo.png" alt="泰安觀止 ONSEN PAPAWAQA"><span style="margin-left:6px">× 米樂家食材</span></a>
+  <a class="lk" href="#feature">產品特色</a><a class="lk" href="#eat">怎麼吃</a><a class="lk" href="#spec">成分規格</a><a class="lk" href="#lookup">查詢訂單</a><a class="lk" href="#about">關於米樂家</a>
   <a class="cartbtn" href="#buy" id="navCart">立即購買 <span class="n" id="navN">0</span></a>
 </div></nav>
 
 <header class="hero" id="top"><div class="wrap">
   <div>
-    <span class="kicker">MILLET’S HOME ・ 米樂家食材</span>
+    <div class="tianhero"><img src="assets/img/taian-logo.png" alt="泰安觀止 ONSEN PAPAWAQA"><p>泰安觀止溫泉會館　專用訂單頁</p></div>
+    <span class="kicker">米樂家食材　供應</span>
     <h1>滿福<em>果仁</em>辣醬</h1>
     <p class="lead">松子、腰果、杏仁、花生、白芝麻、葵瓜子，拌進香麻小辣裡。一罐純素的果仁辣醬，讓拌麵、拌飯、拌青菜都有好滋味。</p>
     <div class="chips"><span class="chip"><i></i>純素</span><span class="chip o"><i></i>香麻小辣</span><span class="chip r"><i></i>淨重 250 公克</span></div>
@@ -351,6 +385,7 @@ footer .bg img{margin:0;height:56px}
 
 <section class="sec alt" id="buy"><div class="wrap">
   <span class="lbl">ORDER</span><h2>線上訂購</h2>
+  <div class="tianorder"><img src="assets/img/taian-logo.png" alt="泰安觀止"><span>泰安觀止專用訂單頁：此頁送出的訂單，將標記為「泰安觀止」來源。</span></div>
   <p class="sub">填好收件資料送出訂單，米樂家會與您確認付款與出貨。</p>
   <div class="notice" id="notice" hidden></div>
   <div class="dealbox" id="dealBox" hidden></div>
@@ -422,8 +457,8 @@ footer .bg img{margin:0;height:56px}
 </div></section>
 
 <footer>
-  <div class="bg"><img src="assets/img/logo-full.png" alt="米樂家食材"></div>
-  <div>米樂家食材 MILLET’S HOME・苗栗</div>
+  <div class="bg"><img src="assets/img/taian-logo.png" alt="泰安觀止 ONSEN PAPAWAQA" style="width:200px;height:auto;border-radius:4px"></div>
+  <div>泰安觀止專用訂單頁　由米樂家食材 MILLET’S HOME 供應</div>
   <div style="margin-top:8px"><a href="https://lin.ee/6xBvJta" target="_blank" rel="noopener" style="color:#fff;font-weight:700">💬 加入米樂家 LINE 官方帳號</a></div><div style="margin-top:6px;opacity:.8">© 2026 米樂家國際貿易有限公司　版權所有</div>
 </footer>
 
