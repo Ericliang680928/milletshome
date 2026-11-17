@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>泰安觀止｜銷售查看</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap">
+<style>
+:root{--bg:#121311;--card:#1c1f1b;--line:#363a35;--ink:#E6E3D9;--ink2:#A9A69B;--g:#9BC53D}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC',system-ui,sans-serif;font-weight:300;letter-spacing:.04em;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px 48px}
+header{background:#0B0B09;border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:14px;padding:12px 16px}
+header img{height:46px;width:auto}
+header b{font-family:'Noto Serif TC',serif;font-weight:300;letter-spacing:.25em;font-size:15px;margin-right:auto}
+button,input,select{font:inherit;color:inherit}
+.btn{background:var(--g);color:#10130c;border:0;border-radius:999px;padding:10px 22px;font-weight:700;letter-spacing:.1em;cursor:pointer;min-height:44px}
+.btn.ghost{background:transparent;color:var(--g);border:1.5px solid var(--g)}
+.in{background:#161815;border:1.5px solid #454a43;border-radius:12px;padding:0 14px;min-height:48px;width:100%}
+#login{max-width:380px;margin:64px auto;text-align:center}
+#login h1{font-family:'Noto Serif TC',serif;font-weight:300;letter-spacing:.2em;font-size:22px}
+#login p{color:var(--ink2);font-size:14px}
+.err{color:#F1C2B6;font-size:14px;min-height:22px;margin:8px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:22px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat small{display:block;color:var(--ink2);font-size:13px}.stat b{font-size:24px;font-weight:500;color:#F3F0E6}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+.bar select{width:auto;min-width:150px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--ink2);font-weight:400;font-size:13px}
+td.n,th.n{text-align:right;white-space:nowrap}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:0 10px;font-size:12px;color:var(--ink2)}
+.tag.cx{color:#d08a7c;border-color:#6a3328}
+.sm{font-size:12px;color:var(--ink2)}
+.empty{color:var(--ink2);text-align:center;padding:40px 0}
+@media(max-width:640px){th.h,td.h{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><img src="../../products/taian/assets/img/taian-logo.png" alt="泰安觀止 ONSEN PAPAWAQA"><b>銷售查看</b><button class="btn ghost" id="out" hidden>登出</button></div></header>
+<div class="wrap">
+  <form id="login">
+    <h1>銷售查看</h1>
+    <p>請輸入查看碼，只會顯示從泰安觀止專用訂單頁送出的訂單。</p>
+    <input class="in" id="code" type="password" autocomplete="current-password" placeholder="查看碼" aria-label="查看碼">
+    <div class="err" id="err" role="alert"></div>
+    <button class="btn" type="submit">查看</button>
+  </form>
+  <div id="main" hidden>
+    <div class="stats" id="stats"></div>
+    <div class="bar"><select class="in" id="mon" aria-label="月份"></select><button class="btn ghost" id="csv" type="button">匯出 CSV</button><span class="sm">金額與罐數不含「已取消」訂單；顧客姓名已遮蔽，不顯示電話與地址。</span></div>
+    <table><thead><tr><th>訂單</th><th class="h">狀態</th><th class="h">取貨</th><th>品項</th><th class="n">金額</th></tr></thead><tbody id="rows"></tbody></table>
+    <div class="empty" id="empty" hidden>這個月份還沒有訂單</div>
+  </div>
+</div>
+<script src="../../config.js"></script>
+<script>
+const $=id=>document.getElementById(id),money=n=>Number(n||0).toLocaleString('en-US');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let CODE='',ORD=[];
+const tpe=d=>new Date(new Date(d).getTime()+8*3600e3).toISOString().slice(0,16).replace('T',' ');
+const mk=o=>tpe(o.created_at).slice(0,7);
+async function load(code,silent){
+  try{
+    const r=await mfRpc('mf_partner_orders',{code});
+    CODE=code;ORD=r.orders||[];try{sessionStorage.setItem('mf_pcode',code);}catch(e){}
+    $('login').hidden=true;$('main').hidden=false;$('out').hidden=false;init();return true;
+  }catch(e){if(!silent)$('err').textContent=e.status===400||e.status===401||/unauthor/i.test(e.message)?'查看碼不正確':'目前無法連線，請稍後再試';return false;}
+}
+function init(){
+  const ms=[...new Set(ORD.map(mk))].sort().reverse();
+  const cur=$('mon').value;
+  $('mon').innerHTML='<option value="">全部月份</option>'+ms.map(m=>'<option>'+m+'</option>').join('');
+  if(ms.includes(cur))$('mon').value=cur;
+  draw();
+}
+const view=()=>ORD.filter(o=>!$('mon').value||mk(o)===$('mon').value);
+function draw(){
+  const L=view(),live=L.filter(o=>o.status!=='已取消');
+  const jars=live.reduce((a,o)=>a+o.items.reduce((x,i)=>x+i.qty+(i.free||0),0),0);
+  $('stats').innerHTML=[['訂單數',live.length+' 筆'],['罐數',jars+' 罐'],['銷售金額','NT$ '+money(live.reduce((a,o)=>a+o.total,0))],['最近一筆',L[0]?tpe(L[0].created_at).slice(5,16):'—']].map(s=>'<div class="stat"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>').join('');
+  $('rows').innerHTML=L.map(o=>'<tr><td>'+esc(o.order_no)+'<div class="sm">'+tpe(o.created_at)+'・'+esc(o.name)+'</div></td><td class="h"><span class="tag'+(o.status==='已取消'?' cx':'')+'">'+esc(o.status)+'</span></td><td class="h">'+esc(o.delivery)+'</td><td>'+o.items.map(i=>esc(i.name)+' × '+i.qty).join('<br>')+'</td><td class="n">NT$ '+money(o.total)+'<div class="sm">含運 '+money(o.ship)+'</div></td></tr>').join('');
+  $('empty').hidden=L.length>0;
+}
+$('mon').onchange=draw;
+$('login').onsubmit=e=>{e.preventDefault();$('err').textContent='';const c=$('code').value.trim();if(c)load(c);};
+$('out').onclick=()=>{try{sessionStorage.removeItem('mf_pcode');}catch(e){}location.reload();};
+$('csv').onclick=()=>{
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const rows=[['訂單編號','下單時間','狀態','顧客(遮蔽)','取貨','品項','數量','單價','運費','訂單合計']];
+  view().forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,o.delivery,i.name,i.qty,i.price,o.ship,o.total])));
+  const b=new Blob(['﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='泰安觀止銷售_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+try{const c=sessionStorage.getItem('mf_pcode');if(c)load(c,true);}catch(e){}
+</script>
+</body>
+</html>
