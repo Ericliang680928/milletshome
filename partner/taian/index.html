@@ -35,6 +35,11 @@ td.n,th.n{text-align:right;white-space:nowrap}
 .tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:0 10px;font-size:12px;color:var(--ink2)}
 .tag.cx{color:#d08a7c;border-color:#6a3328}
 .sm{font-size:12px;color:var(--ink2)}
+.lnk{background:none;border:0;padding:0;color:#F3F0E6;font-weight:500;letter-spacing:.04em;cursor:pointer;text-align:left;text-decoration:underline;text-decoration-color:var(--g);text-underline-offset:4px}
+tr.r{cursor:pointer}tr.r:hover td{background:#171916}
+tr.dt td{background:#161815;padding:14px 12px 18px}
+.dt .grid{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin-bottom:10px}.dt .grid span{color:var(--ink2)}
+.dt table{font-size:13px}.dt th,.dt td{padding:6px 6px;background:none}
 .empty{color:var(--ink2);text-align:center;padding:40px 0}
 @media(max-width:640px){th.h,td.h{display:none}}
 </style>
@@ -51,7 +56,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
   </form>
   <div id="main" hidden>
     <div class="stats" id="stats"></div>
-    <div class="bar"><select class="in" id="mon" aria-label="月份"></select><button class="btn ghost" id="csv" type="button">匯出 CSV</button><span class="sm">金額與罐數不含「已取消」訂單；顧客姓名已遮蔽，不顯示電話與地址。</span></div>
+    <div class="bar"><select class="in" id="mon" aria-label="月份"></select><button class="btn ghost" id="csv" type="button">匯出 CSV</button><span class="sm">金額與罐數不含「已取消」訂單；顧客姓名已遮蔽，不顯示電話與地址。點訂單可看明細。</span></div>
     <table><thead><tr><th>訂單</th><th class="h">狀態</th><th class="h">取貨</th><th>品項</th><th class="n">金額</th></tr></thead><tbody id="rows"></tbody></table>
     <div class="empty" id="empty" hidden>這個月份還沒有訂單</div>
   </div>
@@ -60,7 +65,7 @@ td.n,th.n{text-align:right;white-space:nowrap}
 <script>
 const $=id=>document.getElementById(id),money=n=>Number(n||0).toLocaleString('en-US');
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let CODE='',ORD=[];
+let CODE='',ORD=[],OPEN='';
 const tpe=d=>new Date(new Date(d).getTime()+8*3600e3).toISOString().slice(0,16).replace('T',' ');
 const mk=o=>tpe(o.created_at).slice(0,7);
 async function load(code,silent){
@@ -82,10 +87,14 @@ function draw(){
   const L=view(),live=L.filter(o=>o.status!=='已取消');
   const jars=live.reduce((a,o)=>a+o.items.reduce((x,i)=>x+i.qty+(i.free||0),0),0);
   $('stats').innerHTML=[['訂單數',live.length+' 筆'],['罐數',jars+' 罐'],['銷售金額','NT$ '+money(live.reduce((a,o)=>a+o.total,0))],['最近一筆',L[0]?tpe(L[0].created_at).slice(5,16):'—']].map(s=>'<div class="stat"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>').join('');
-  $('rows').innerHTML=L.map(o=>'<tr><td>'+esc(o.order_no)+'<div class="sm">'+tpe(o.created_at)+'・'+esc(o.name)+'</div></td><td class="h"><span class="tag'+(o.status==='已取消'?' cx':'')+'">'+esc(o.status)+'</span></td><td class="h">'+esc(o.delivery)+'</td><td>'+o.items.map(i=>esc(i.name)+' × '+i.qty).join('<br>')+'</td><td class="n">NT$ '+money(o.total)+'<div class="sm">含運 '+money(o.ship)+'</div></td></tr>').join('');
+  $('rows').innerHTML=L.map((o,k)=>{const open=OPEN===o.order_no;
+    const det=open?'<tr class="dt"><td colspan="5"><div class="grid"><span>訂單編號</span><b>'+esc(o.order_no)+'</b><span>下單時間</span><b>'+tpe(o.created_at)+'</b><span>狀態</span><b>'+esc(o.status)+'</b><span>顧客</span><b>'+esc(o.name)+'</b><span>取貨方式</span><b>'+esc(o.delivery)+'</b></div>'
+      +'<table><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('')+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table></td></tr>':'';
+    return '<tr class="r" data-no="'+esc(o.order_no)+'"><td><button type="button" class="lnk" aria-expanded="'+open+'">'+esc(o.order_no)+'</button><div class="sm">'+tpe(o.created_at)+'・'+esc(o.name)+'</div></td><td class="h"><span class="tag'+(o.status==='已取消'?' cx':'')+'">'+esc(o.status)+'</span></td><td class="h">'+esc(o.delivery)+'</td><td>'+o.items.map(i=>esc(i.name)+' × '+i.qty).join('<br>')+'</td><td class="n">NT$ '+money(o.total)+'<div class="sm">含運 '+money(o.ship)+'</div></td></tr>'+det;}).join('');
   $('empty').hidden=L.length>0;
 }
 $('mon').onchange=draw;
+$('rows').addEventListener('click',e=>{const r=e.target.closest('tr.r');if(!r)return;OPEN=OPEN===r.dataset.no?'':r.dataset.no;draw();});
 $('login').onsubmit=e=>{e.preventDefault();$('err').textContent='';const c=$('code').value.trim();if(c)load(c);};
 $('out').onclick=()=>{try{sessionStorage.removeItem('mf_pcode');}catch(e){}location.reload();};
 $('csv').onclick=()=>{
