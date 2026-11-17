@@ -56,7 +56,7 @@ tr.dt td{background:#161815;padding:14px 12px 18px}
   </form>
   <div id="main" hidden>
     <div class="stats" id="stats"></div>
-    <div class="bar"><select class="in" id="mon" aria-label="月份"></select><button class="btn ghost" id="csv" type="button">匯出 CSV</button><span class="sm">金額與罐數不含「已取消」訂單；顧客姓名已遮蔽，不顯示電話與地址。點訂單可看明細。</span></div>
+    <div class="bar"><select class="in" id="mon" aria-label="月份"></select><button class="btn ghost" id="csv" type="button">匯出 CSV</button><span class="sm">金額與罐數不含「已取消」訂單；點訂單可看明細（含顧客聯絡資料）。</span></div>
     <table><thead><tr><th>訂單</th><th class="h">狀態</th><th class="h">取貨</th><th>品項</th><th class="n">金額</th></tr></thead><tbody id="rows"></tbody></table>
     <div class="empty" id="empty" hidden>這個月份還沒有訂單</div>
   </div>
@@ -88,7 +88,7 @@ function draw(){
   const jars=live.reduce((a,o)=>a+o.items.reduce((x,i)=>x+i.qty+(i.free||0),0),0);
   $('stats').innerHTML=[['訂單數',live.length+' 筆'],['罐數',jars+' 罐'],['銷售金額','NT$ '+money(live.reduce((a,o)=>a+o.total,0))],['最近一筆',L[0]?tpe(L[0].created_at).slice(5,16):'—']].map(s=>'<div class="stat"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>').join('');
   $('rows').innerHTML=L.map((o,k)=>{const open=OPEN===o.order_no;
-    const det=open?'<tr class="dt"><td colspan="5"><div class="grid"><span>訂單編號</span><b>'+esc(o.order_no)+'</b><span>下單時間</span><b>'+tpe(o.created_at)+'</b><span>狀態</span><b>'+esc(o.status)+'</b><span>顧客</span><b>'+esc(o.name)+'</b><span>取貨方式</span><b>'+esc(o.delivery)+'</b></div>'
+    const det=open?'<tr class="dt"><td colspan="5"><div class="grid"><span>訂單編號</span><b>'+esc(o.order_no)+'</b><span>下單時間</span><b>'+tpe(o.created_at)+'</b><span>狀態</span><b>'+esc(o.status)+'</b><span>顧客</span><b>'+esc(o.name)+'</b><span>電話</span><b>'+esc(o.tel)+'</b><span>取貨方式</span><b>'+esc(o.delivery)+(o.addr?'｜'+esc(o.addr):'')+'</b><span>付款方式</span><b>'+esc(o.pay)+'</b></div>'
       +'<table><thead><tr><th>品項</th><th class="n">單價</th><th class="n">數量</th><th class="n">小計</th></tr></thead><tbody>'+o.items.map(i=>'<tr><td>'+esc(i.name)+'</td><td class="n">NT$ '+money(i.price)+'</td><td class="n">'+i.qty+(i.free?' ＋贈 '+i.free:'')+'</td><td class="n">NT$ '+money(i.price*i.qty)+'</td></tr>').join('')+'</tbody><tfoot><tr><td colspan="3" class="n">運費</td><td class="n">NT$ '+money(o.ship)+'</td></tr><tr><td colspan="3" class="n"><b>合計</b></td><td class="n"><b>NT$ '+money(o.total)+'</b></td></tr></tfoot></table></td></tr>':'';
     return '<tr class="r" data-no="'+esc(o.order_no)+'"><td><button type="button" class="lnk" aria-expanded="'+open+'">'+esc(o.order_no)+'</button><div class="sm">'+tpe(o.created_at)+'・'+esc(o.name)+'</div></td><td class="h"><span class="tag'+(o.status==='已取消'?' cx':'')+'">'+esc(o.status)+'</span></td><td class="h">'+esc(o.delivery)+'</td><td>'+o.items.map(i=>esc(i.name)+' × '+i.qty).join('<br>')+'</td><td class="n">NT$ '+money(o.total)+'<div class="sm">含運 '+money(o.ship)+'</div></td></tr>'+det;}).join('');
   $('empty').hidden=L.length>0;
@@ -99,8 +99,8 @@ $('login').onsubmit=e=>{e.preventDefault();$('err').textContent='';const c=$('co
 $('out').onclick=()=>{try{sessionStorage.removeItem('mf_pcode');}catch(e){}location.reload();};
 $('csv').onclick=()=>{
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const rows=[['訂單編號','下單時間','狀態','顧客(遮蔽)','取貨','品項','數量','單價','運費','訂單合計']];
-  view().forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,o.delivery,i.name,i.qty,i.price,o.ship,o.total])));
+  const rows=[['訂單編號','下單時間','狀態','顧客','電話','地址','取貨','付款','品項','數量','單價','運費','訂單合計']];
+  view().forEach(o=>o.items.forEach(i=>rows.push([o.order_no,tpe(o.created_at),o.status,o.name,"'"+o.tel,o.addr,o.delivery,o.pay,i.name,i.qty,i.price,o.ship,o.total])));
   const b=new Blob(['﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='泰安觀止銷售_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 };
